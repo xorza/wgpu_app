@@ -33,10 +33,14 @@ pub struct Runtime<UserEventType: 'static> {
     // instance: wgpu::Instance,
     // size: winit::dpi::PhysicalSize<u32>,
     pub surface: wgpu::Surface,
+    pub surface_config: wgpu::SurfaceConfiguration,
     // adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+
     pub start: Instant,
+
+    pub window_size: Vec2u32,
     pub mouse_position: Vec2u32,
 }
 
@@ -91,12 +95,12 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         .expect("Unable to find a suitable GPU adapter.");
 
 
-    let mut config = surface
+    let mut surface_config = surface
         .get_default_config(&adapter, size.width, size.height)
         .expect("Surface isn't supported by the adapter.");
-    let surface_view_format = config.format.add_srgb_suffix();
-    config.view_formats.push(surface_view_format);
-    surface.configure(&device, &config);
+    surface_config.format = surface_config.format.add_srgb_suffix();
+    surface_config.view_formats.push(surface_config.format);
+    surface.configure(&device, &surface_config);
 
 
     // run
@@ -107,10 +111,12 @@ pub fn run<AppType: WgpuApp>(title: &str) {
             event_loop_proxy: event_loop.create_proxy(),
         },
         surface,
+        surface_config,
         device,
         queue,
         start: Instant::now(),
         mouse_position: Vec2u32::zeroed(),
+        window_size: Vec2u32::new(size.width, size.height),
     };
 
     let mut app = AppType::new(&runtime);
@@ -124,6 +130,35 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         let mut result: EventResult = EventResult::Continue;
 
         match event {
+            winit::event::Event::RedrawRequested(_) => {
+                let surface_texture = match runtime.surface.get_current_texture() {
+                    Ok(frame) => frame,
+                    Err(_) => {
+                        runtime.surface.configure(&runtime.device, &runtime.surface_config);
+                        runtime.surface
+                            .get_current_texture()
+                            .expect("Failed to acquire next surface texture.")
+                    }
+                };
+                let surface_texture_view = surface_texture.texture.create_view(
+                    &wgpu::TextureViewDescriptor {
+                        format: Some(runtime.surface_config.format),
+                        ..wgpu::TextureViewDescriptor::default()
+                    }
+                );
+
+                assert!(!has_error_scope);
+                runtime.device.push_error_scope(wgpu::ErrorFilter::Validation);
+                has_error_scope = true;
+
+                app.render(
+                    &runtime,
+                    &surface_texture_view,
+                    runtime.start.elapsed().as_secs_f64(),
+                );
+
+                surface_texture.present();
+            }
             winit::event::Event::RedrawEventsCleared => {
                 if has_error_scope {
                     if let Some(error) = runtime.device.pop_error_scope().block_on() {
@@ -143,43 +178,16 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                 },
                 ..
             } => {
-                config.width = size.width.max(1);
-                config.height = size.height.max(1);
-                runtime.surface.configure(&runtime.device, &config);
+                if size.width != runtime.window_size.x
+                    || size.height != runtime.window_size.y {
+                    let window_size = Vec2u32::new(size.width.max(1), size.height.max(1));
+                    runtime.window_size = window_size;
+                    runtime.surface_config.width = window_size.x;
+                    runtime.surface_config.height = window_size.y;
+                    runtime.surface.configure(&runtime.device, &runtime.surface_config);
 
-                let window_size = Vec2u32::new(size.width, size.height);
-
-                result = app.update(&runtime, Event::Resized(window_size));
-            }
-
-            winit::event::Event::RedrawRequested(_) => {
-                let surface_texture = match runtime.surface.get_current_texture() {
-                    Ok(frame) => frame,
-                    Err(_) => {
-                        runtime.surface.configure(&runtime.device, &config);
-                        runtime.surface
-                            .get_current_texture()
-                            .expect("Failed to acquire next surface texture.")
-                    }
-                };
-                let surface_texture_view = surface_texture.texture.create_view(
-                    &wgpu::TextureViewDescriptor {
-                        format: Some(surface_view_format),
-                        ..wgpu::TextureViewDescriptor::default()
-                    }
-                );
-
-                assert!(!has_error_scope);
-                runtime.device.push_error_scope(wgpu::ErrorFilter::Validation);
-                has_error_scope = true;
-
-                app.render(
-                    &runtime,
-                    &surface_texture_view,
-                    runtime.start.elapsed().as_secs_f64(),
-                );
-
-                surface_texture.present();
+                    result = app.update(&runtime, Event::Resized(window_size));
+                }
             }
 
             winit::event::Event::WindowEvent { event, .. } => {
