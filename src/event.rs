@@ -37,7 +37,7 @@ pub enum EventResult {
     Exit,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EventLoop<UserEventType: 'static> {
     pub(crate) event_loop_proxy: winit::event_loop::EventLoopProxy<UserEventType>,
 }

@@ -11,30 +11,34 @@ use crate::math::Vec2u32;
 pub trait WgpuApp: 'static {
     type UserEventType: Send + 'static;
 
-    fn new(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        surface_config: &wgpu::SurfaceConfiguration,
-        event_loop_proxy: EventLoop<Self::UserEventType>,
-    ) -> Self;
-    fn update(&mut self, event: Event<Self::UserEventType>) -> EventResult;
-    fn render(&mut self,
-              device: &wgpu::Device,
-              queue: &wgpu::Queue,
-              view: &wgpu::TextureView,
-              time: f64);
+    fn new(runtime: &Runtime<Self::UserEventType>) -> Self;
+
+    fn update(
+        &mut self,
+        runtime: &Runtime<Self::UserEventType>,
+        event: Event<Self::UserEventType>,
+    ) -> EventResult;
+
+    fn render(
+        &mut self,
+        runtime: &Runtime<Self::UserEventType>,
+        view: &wgpu::TextureView,
+        time: f64,
+    );
 }
 
-// pub struct Runtime<UserEventType: 'static> {
-//     window: winit::window::Window,
-//     event_loop: EventLoop<UserEventType>,
-//     instance: wgpu::Instance,
-//     size: winit::dpi::PhysicalSize<u32>,
-//     surface: wgpu::Surface,
-//     adapter: wgpu::Adapter,
-//     device: wgpu::Device,
-//     queue: wgpu::Queue,
-// }
+pub struct Runtime<UserEventType: 'static> {
+    // window: winit::window::Window,
+    pub event_loop: EventLoop<UserEventType>,
+    // instance: wgpu::Instance,
+    // size: winit::dpi::PhysicalSize<u32>,
+    pub surface: wgpu::Surface,
+    // adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub start: Instant,
+    pub mouse_position: Vec2u32,
+}
 
 
 pub fn run<AppType: WgpuApp>(title: &str) {
@@ -87,8 +91,6 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         .expect("Unable to find a suitable GPU adapter.");
 
 
-    // run
-
     let mut config = surface
         .get_default_config(&adapter, size.width, size.height)
         .expect("Surface isn't supported by the adapter.");
@@ -96,35 +98,23 @@ pub fn run<AppType: WgpuApp>(title: &str) {
     config.view_formats.push(surface_view_format);
     surface.configure(&device, &config);
 
-    let event_loop_proxy = event_loop.create_proxy();
 
-
-    let start = Instant::now();
+    // run
     let mut has_error_scope = false;
-    let mut mouse_position: Vec2u32 = Vec2u32::zeroed();
 
-    // let runtime = Runtime {
-    //     window,
-    //     event_loop: EventLoop {
-    //         event_loop_proxy,
-    //     },
-    //     instance,
-    //     size,
-    //     surface,
-    //     adapter,
-    //     device,
-    //     queue,
-    // };
-
-    let mut app = AppType::new(
-        &device,
-        &queue,
-        &config,
-        EventLoop {
-            event_loop_proxy,
+    let mut runtime = Runtime {
+        event_loop: EventLoop {
+            event_loop_proxy: event_loop.create_proxy(),
         },
-    );
-    match app.update(Event::Init) {
+        surface,
+        device,
+        queue,
+        start: Instant::now(),
+        mouse_position: Vec2u32::zeroed(),
+    };
+
+    let mut app = AppType::new(&runtime);
+    match app.update(&runtime, Event::Init) {
         EventResult::Continue => {}
         EventResult::Redraw => {}
         EventResult::Exit => return,
@@ -136,13 +126,13 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         match event {
             winit::event::Event::RedrawEventsCleared => {
                 if has_error_scope {
-                    if let Some(error) = device.pop_error_scope().block_on() {
+                    if let Some(error) = runtime.device.pop_error_scope().block_on() {
                         panic!("Device error: {:?}", error);
                     }
                     has_error_scope = false;
                 }
 
-                result = app.update(Event::RedrawFinished);
+                result = app.update(&runtime, Event::RedrawFinished);
             }
             winit::event::Event::WindowEvent {
                 event:
@@ -155,19 +145,19 @@ pub fn run<AppType: WgpuApp>(title: &str) {
             } => {
                 config.width = size.width.max(1);
                 config.height = size.height.max(1);
-                surface.configure(&device, &config);
+                runtime.surface.configure(&runtime.device, &config);
 
                 let window_size = Vec2u32::new(size.width, size.height);
 
-                result = app.update(Event::Resized(window_size));
+                result = app.update(&runtime, Event::Resized(window_size));
             }
 
             winit::event::Event::RedrawRequested(_) => {
-                let surface_texture = match surface.get_current_texture() {
+                let surface_texture = match runtime.surface.get_current_texture() {
                     Ok(frame) => frame,
                     Err(_) => {
-                        surface.configure(&device, &config);
-                        surface
+                        runtime.surface.configure(&runtime.device, &config);
+                        runtime.surface
                             .get_current_texture()
                             .expect("Failed to acquire next surface texture.")
                     }
@@ -176,29 +166,29 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                     &wgpu::TextureViewDescriptor {
                         format: Some(surface_view_format),
                         ..wgpu::TextureViewDescriptor::default()
-                    });
+                    }
+                );
 
                 assert!(!has_error_scope);
-                device.push_error_scope(wgpu::ErrorFilter::Validation);
+                runtime.device.push_error_scope(wgpu::ErrorFilter::Validation);
                 has_error_scope = true;
 
                 app.render(
-                    &device,
-                    &queue,
+                    &runtime,
                     &surface_texture_view,
-                    start.elapsed().as_secs_f64(),
+                    runtime.start.elapsed().as_secs_f64(),
                 );
 
                 surface_texture.present();
             }
 
             winit::event::Event::WindowEvent { event, .. } => {
-                let event = convert_event(event, &mut mouse_position);
-                result = app.update(event);
+                let event = convert_event(event, &mut runtime.mouse_position);
+                result = app.update(&runtime, event);
             }
 
             winit::event::Event::UserEvent(event) => {
-                result = app.update(Event::Custom(event));
+                result = app.update(&runtime, Event::Custom(event));
             }
 
             _ => {}
