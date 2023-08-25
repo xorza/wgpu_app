@@ -1,0 +1,11 @@
+[package]
+name = "wgpu_app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wgpu = "*"
+winit = "*"
+anyhow = "*"
+bytemuck = { version = "*", features = ["derive"] }
+pollster = "*"
