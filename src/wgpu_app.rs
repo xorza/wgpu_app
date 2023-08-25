@@ -3,8 +3,7 @@ use std::time::Instant;
 
 use bytemuck::Zeroable;
 use pollster::FutureExt;
-use wgpu::Limits;
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy};
+use winit::event_loop::{ControlFlow, EventLoop as WinitEventLoop, EventLoopBuilder};
 
 use crate::event::{ElementState, Event, EventResult, MouseButtons};
 use crate::math::{Vec2i32, Vec2u32};
@@ -16,14 +15,19 @@ pub struct RenderInfo<'a> {
     pub time: f64,
 }
 
+#[derive(Debug)]
+pub struct EventLoop<UserEventType: 'static> {
+    event_loop_proxy: winit::event_loop::EventLoopProxy<UserEventType>,
+}
+
 pub trait WgpuApp: 'static + Sized {
-    type UserEventType;
+    type UserEventType: Send + 'static;
 
     fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         surface_config: &wgpu::SurfaceConfiguration,
-        event_loop_proxy: EventLoopProxy<Self::UserEventType>,
+        event_loop_proxy: EventLoop<Self::UserEventType>,
     ) -> Self;
     fn update(&mut self, event: Event<Self::UserEventType>) -> EventResult;
     fn render(&mut self,
@@ -31,12 +35,11 @@ pub trait WgpuApp: 'static + Sized {
               queue: &wgpu::Queue,
               view: &wgpu::TextureView,
               time: f64);
-    fn resize(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, window_size: Vec2u32);
 }
 
 struct Setup<UserEventType: 'static> {
     window: winit::window::Window,
-    event_loop: EventLoop<UserEventType>,
+    event_loop: WinitEventLoop<UserEventType>,
     instance: wgpu::Instance,
     size: winit::dpi::PhysicalSize<u32>,
     surface: wgpu::Surface,
@@ -46,7 +49,7 @@ struct Setup<UserEventType: 'static> {
 }
 
 fn setup<UserEventType: 'static>(title: &str) -> Setup<UserEventType> {
-    let event_loop: EventLoop<UserEventType> =
+    let event_loop: WinitEventLoop<UserEventType> =
         EventLoopBuilder::<UserEventType>::with_user_event()
             .build();
     let window =
@@ -75,7 +78,7 @@ fn setup<UserEventType: 'static>(title: &str) -> Setup<UserEventType> {
         .expect("No suitable GPU adapters found on the system.");
 
     // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the surface.
-    let limits = Limits {
+    let limits = wgpu::Limits {
         max_push_constant_size: 1024,
         ..Default::default()
     }.using_resolution(adapter.limits());
@@ -124,7 +127,14 @@ fn start<AppType: WgpuApp>(
     surface.configure(&device, &config);
 
     let event_loop_proxy = event_loop.create_proxy();
-    let mut app = AppType::new(&device, &queue, &config, event_loop_proxy);
+    let mut app = AppType::new(
+        &device,
+        &queue,
+        &config,
+        EventLoop {
+            event_loop_proxy,
+        },
+    );
 
     let start = Instant::now();
     let mut has_error_scope = false;
@@ -166,7 +176,6 @@ fn start<AppType: WgpuApp>(
 
                 let window_size = Vec2u32::new(size.width, size.height);
 
-                app.resize(&device, &queue, window_size);
                 result = app.update(Event::Resized(window_size));
             }
 
@@ -279,4 +288,12 @@ fn process_window_event<UserEvent>(event: winit::event::WindowEvent, mouse_posit
 pub fn run<AppType: WgpuApp>(title: &str) {
     let setup = setup::<AppType::UserEventType>(title);
     start::<AppType>(setup);
+}
+
+impl<UserEventType: Send + 'static> EventLoop<UserEventType> {
+    pub fn send_event(&self, event: UserEventType) -> anyhow::Result<()> {
+        self.event_loop_proxy
+            .send_event(event)
+            .map_err(|_| anyhow::anyhow!("Failed to send event to event loop."))
+    }
 }
