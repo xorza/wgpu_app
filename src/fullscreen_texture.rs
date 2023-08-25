@@ -13,10 +13,10 @@ pub struct FullScreenTexture {
 
     bind_group_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
-    bind_group: BindGroup1,
+    bind_group: TextureBindGroup,
 }
 
-struct BindGroup1 {
+struct TextureBindGroup {
     pub texture: wgpu::Texture,
     bind_group: wgpu::BindGroup,
 }
@@ -122,7 +122,7 @@ impl FullScreenTexture {
             multiview: None,
         });
 
-        let bind_group = BindGroup1::new(
+        let bind_group = TextureBindGroup::new(
             device,
             &bind_group_layout,
             &sampler,
@@ -179,7 +179,7 @@ impl FullScreenTexture {
     pub fn resize_window(&mut self, device: &wgpu::Device, window_size: Vec2u32) {
         self.window_size = window_size;
 
-        self.bind_group = BindGroup1::new(
+        self.bind_group = TextureBindGroup::new(
             device,
             &self.bind_group_layout,
             &self.sampler,
@@ -192,7 +192,7 @@ impl FullScreenTexture {
     }
 }
 
-impl BindGroup1 {
+impl TextureBindGroup {
     pub fn new(
         device: &wgpu::Device,
         bindind_group_layout: &wgpu::BindGroupLayout,
