@@ -22,8 +22,7 @@ pub trait WgpuApp: 'static {
     fn render(
         &mut self,
         runtime: &Runtime<Self::UserEventType>,
-        view: &wgpu::TextureView,
-        time: f64,
+        surface_view: &wgpu::TextureView,
     );
 }
 
@@ -164,8 +163,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
 
                 app.render(
                     &runtime,
-                    &surface_texture_view,
-                    runtime.start.elapsed().as_secs_f64(),
+                    &surface_texture_view
                 );
 
                 surface_texture.present();
