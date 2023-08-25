@@ -5,22 +5,10 @@ use bytemuck::Zeroable;
 use pollster::FutureExt;
 use winit::event_loop::{ControlFlow, EventLoop as WinitEventLoop, EventLoopBuilder};
 
-use crate::event::{ElementState, Event, EventResult, MouseButtons};
-use crate::math::{Vec2i32, Vec2u32};
+use crate::event::{convert_event, Event, EventLoop, EventResult};
+use crate::math::Vec2u32;
 
-pub struct RenderInfo<'a> {
-    pub device: &'a wgpu::Device,
-    pub queue: &'a wgpu::Queue,
-    pub view: &'a wgpu::TextureView,
-    pub time: f64,
-}
-
-#[derive(Debug)]
-pub struct EventLoop<UserEventType: 'static> {
-    event_loop_proxy: winit::event_loop::EventLoopProxy<UserEventType>,
-}
-
-pub trait WgpuApp: 'static + Sized {
+pub trait WgpuApp: 'static {
     type UserEventType: Send + 'static;
 
     fn new(
@@ -37,20 +25,23 @@ pub trait WgpuApp: 'static + Sized {
               time: f64);
 }
 
-struct Setup<UserEventType: 'static> {
-    window: winit::window::Window,
-    event_loop: WinitEventLoop<UserEventType>,
-    instance: wgpu::Instance,
-    size: winit::dpi::PhysicalSize<u32>,
-    surface: wgpu::Surface,
-    adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-}
+// pub struct Runtime<UserEventType: 'static> {
+//     window: winit::window::Window,
+//     event_loop: EventLoop<UserEventType>,
+//     instance: wgpu::Instance,
+//     size: winit::dpi::PhysicalSize<u32>,
+//     surface: wgpu::Surface,
+//     adapter: wgpu::Adapter,
+//     device: wgpu::Device,
+//     queue: wgpu::Queue,
+// }
 
-fn setup<UserEventType: 'static>(title: &str) -> Setup<UserEventType> {
-    let event_loop: WinitEventLoop<UserEventType> =
-        EventLoopBuilder::<UserEventType>::with_user_event()
+
+pub fn run<AppType: WgpuApp>(title: &str) {
+    // setup
+
+    let event_loop: WinitEventLoop<AppType::UserEventType> =
+        EventLoopBuilder::<AppType::UserEventType>::with_user_event()
             .build();
     let window =
         winit::window::WindowBuilder::new()
@@ -95,30 +86,9 @@ fn setup<UserEventType: 'static>(title: &str) -> Setup<UserEventType> {
         .block_on()
         .expect("Unable to find a suitable GPU adapter.");
 
-    Setup {
-        window,
-        event_loop,
-        instance,
-        size,
-        surface,
-        adapter,
-        device,
-        queue,
-    }
-}
 
-fn start<AppType: WgpuApp>(
-    Setup {
-        window,
-        event_loop,
-        instance,
-        size,
-        surface,
-        adapter,
-        device,
-        queue,
-    }: Setup<AppType::UserEventType>,
-) {
+    // run
+
     let mut config = surface
         .get_default_config(&adapter, size.width, size.height)
         .expect("Surface isn't supported by the adapter.");
@@ -127,6 +97,25 @@ fn start<AppType: WgpuApp>(
     surface.configure(&device, &config);
 
     let event_loop_proxy = event_loop.create_proxy();
+
+
+    let start = Instant::now();
+    let mut has_error_scope = false;
+    let mut mouse_position: Vec2u32 = Vec2u32::zeroed();
+
+    // let runtime = Runtime {
+    //     window,
+    //     event_loop: EventLoop {
+    //         event_loop_proxy,
+    //     },
+    //     instance,
+    //     size,
+    //     surface,
+    //     adapter,
+    //     device,
+    //     queue,
+    // };
+
     let mut app = AppType::new(
         &device,
         &queue,
@@ -135,19 +124,13 @@ fn start<AppType: WgpuApp>(
             event_loop_proxy,
         },
     );
-
-    let start = Instant::now();
-    let mut has_error_scope = false;
-    let mut mouse_position: Vec2u32 = Vec2u32::zeroed();
-
     match app.update(Event::Init) {
         EventResult::Continue => {}
-        EventResult::Redraw => window.request_redraw(),
+        EventResult::Redraw => {}
         EventResult::Exit => return,
     }
 
     event_loop.run(move |event, _target, control_flow| {
-        let _ = (&instance, &adapter); // force ownership by the closure
         let mut result: EventResult = EventResult::Continue;
 
         match event {
@@ -210,7 +193,7 @@ fn start<AppType: WgpuApp>(
             }
 
             winit::event::Event::WindowEvent { event, .. } => {
-                let event = process_window_event(event, &mut mouse_position);
+                let event = convert_event(event, &mut mouse_position);
                 result = app.update(event);
             }
 
@@ -227,73 +210,4 @@ fn start<AppType: WgpuApp>(
             EventResult::Exit => *control_flow = ControlFlow::Exit
         }
     });
-}
-
-fn process_window_event<UserEvent>(event: winit::event::WindowEvent, mouse_position: &mut Vec2u32) -> Event<UserEvent> {
-    match event {
-        winit::event::WindowEvent::Resized(size) =>
-            Event::Resized(
-                Vec2u32::new(size.width.max(1), size.height.max(1)),
-            ),
-        winit::event::WindowEvent::Focused(_is_focused) => {
-            Event::Unknown
-        }
-        winit::event::WindowEvent::CursorEntered { .. } => {
-            Event::Unknown
-        }
-        winit::event::WindowEvent::CursorLeft { .. } => {
-            Event::Unknown
-        }
-        winit::event::WindowEvent::CursorMoved { position: _position, .. } => {
-            let prev_pos = *mouse_position;
-            let new_pos = Vec2u32::new(_position.x as u32, _position.y as u32);
-            *mouse_position = new_pos;
-
-            Event::MouseMove {
-                position: new_pos,
-                delta: Vec2i32::from(new_pos) - Vec2i32::from(prev_pos),
-            }
-        }
-        winit::event::WindowEvent::Occluded(_is_occluded) => {
-            Event::Unknown
-        }
-        winit::event::WindowEvent::MouseInput { state, button, .. } => {
-            Event::MouseButton(
-                MouseButtons::from(button),
-                ElementState::from(state),
-                mouse_position.clone(),
-            )
-        }
-        winit::event::WindowEvent::MouseWheel { delta, phase: _phase, .. } => {
-            match delta {
-                winit::event::MouseScrollDelta::LineDelta(_l1, l2) => {
-                    Event::MouseWheel(mouse_position.clone(), l2)
-                }
-                winit::event::MouseScrollDelta::PixelDelta(pix) => {
-                    println!("PIXEL DELTA: {:?}", pix);
-                    Event::Unknown
-                }
-            }
-        }
-        winit::event::WindowEvent::CloseRequested => {
-            Event::WindowClose
-        }
-        winit::event::WindowEvent::Moved(_position) => {
-            Event::Unknown
-        }
-        _ => Event::Unknown,
-    }
-}
-
-pub fn run<AppType: WgpuApp>(title: &str) {
-    let setup = setup::<AppType::UserEventType>(title);
-    start::<AppType>(setup);
-}
-
-impl<UserEventType: Send + 'static> EventLoop<UserEventType> {
-    pub fn send_event(&self, event: UserEventType) -> anyhow::Result<()> {
-        self.event_loop_proxy
-            .send_event(event)
-            .map_err(|_| anyhow::anyhow!("Failed to send event to event loop."))
-    }
 }
