@@ -105,6 +105,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
 
     // run
     let mut has_error_scope = false;
+    let mut resizing = false;
 
     let mut runtime = Runtime {
         event_loop: EventLoop {
@@ -128,6 +129,16 @@ pub fn run<AppType: WgpuApp>(title: &str) {
 
     event_loop.run(move |event, _target, control_flow| {
         let mut result: EventResult = EventResult::Continue;
+
+        if matches!(event, winit::event::Event::MainEventsCleared) {
+            if resizing {
+                resizing = false;
+                result = app.update(&runtime, Event::ResizeFinished(runtime.window_size));
+            } else {
+                *control_flow = ControlFlow::Wait;
+                return;
+            }
+        }
 
         match event {
             winit::event::Event::RedrawRequested(_) => {
@@ -180,6 +191,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
             } => {
                 if size.width != runtime.window_size.x
                     || size.height != runtime.window_size.y {
+                    resizing = true;
+
                     let window_size = Vec2u32::new(size.width.max(1), size.height.max(1));
                     runtime.window_size = window_size;
                     runtime.surface_config.width = window_size.x;
@@ -189,12 +202,10 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                     result = app.update(&runtime, Event::Resized(window_size));
                 }
             }
-
             winit::event::Event::WindowEvent { event, .. } => {
                 let event = convert_event(event, &mut runtime.mouse_position);
                 result = app.update(&runtime, event);
             }
-
             winit::event::Event::UserEvent(event) => {
                 result = app.update(&runtime, Event::Custom(event));
             }
