@@ -1,4 +1,5 @@
 use std::default::Default;
+use std::fmt::Debug;
 use std::time::Instant;
 
 use bytemuck::Zeroable;
@@ -9,7 +10,7 @@ use crate::event::{convert_event, Event, EventLoop, EventResult};
 use crate::math::Vec2u32;
 
 pub trait WgpuApp: 'static {
-    type UserEventType: Send + 'static;
+    type UserEventType: Send + Debug + 'static;
 
     fn new(runtime: &Runtime<Self::UserEventType>) -> Self;
 
@@ -103,8 +104,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
 
 
     // run
-    let mut has_error_scope = false;
-    let mut resizing = false;
+    let mut is_redrawing = false;
+    let mut is_resizing = false;
 
     let mut runtime = Runtime {
         event_loop: EventLoop {
@@ -129,18 +130,31 @@ pub fn run<AppType: WgpuApp>(title: &str) {
     event_loop.run(move |event, _target, control_flow| {
         let mut result: EventResult = EventResult::Continue;
 
-        if matches!(event, winit::event::Event::MainEventsCleared) {
-            if resizing {
-                resizing = false;
-                result = app.update(&runtime, Event::ResizeFinished(runtime.window_size));
-            } else {
-                *control_flow = ControlFlow::Wait;
-                return;
-            }
-        }
-
         match event {
+            winit::event::Event::MainEventsCleared => {
+                if is_resizing {
+                    is_resizing = false;
+
+                    let window_size = Vec2u32::new(
+                        window.inner_size().width.max(1),
+                        window.inner_size().height.max(1),
+                    );
+                    runtime.window_size = window_size;
+                    runtime.surface_config.width = window_size.x;
+                    runtime.surface_config.height = window_size.y;
+                    runtime.surface.configure(&runtime.device, &runtime.surface_config);
+
+                    result = app.update(&runtime, Event::Resized(window_size));
+                } else {
+                    *control_flow = ControlFlow::Wait;
+                    return;
+                }
+            }
             winit::event::Event::RedrawRequested(_) => {
+                assert!(!is_redrawing);
+                runtime.device.push_error_scope(wgpu::ErrorFilter::Validation);
+                is_redrawing = true;
+
                 let surface_texture = match runtime.surface.get_current_texture() {
                     Ok(frame) => frame,
                     Err(_) => {
@@ -157,26 +171,23 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                     }
                 );
 
-                assert!(!has_error_scope);
-                runtime.device.push_error_scope(wgpu::ErrorFilter::Validation);
-                has_error_scope = true;
-
                 app.render(
                     &runtime,
-                    &surface_texture_view
+                    &surface_texture_view,
                 );
 
                 surface_texture.present();
             }
             winit::event::Event::RedrawEventsCleared => {
-                if has_error_scope {
+                if is_redrawing {
+                    is_redrawing = false;
+
                     if let Some(error) = runtime.device.pop_error_scope().block_on() {
                         panic!("Device error: {:?}", error);
                     }
-                    has_error_scope = false;
-                }
 
-                result = app.update(&runtime, Event::RedrawFinished);
+                    result = app.update(&runtime, Event::RedrawFinished);
+                }
             }
             winit::event::Event::WindowEvent {
                 event:
@@ -189,15 +200,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
             } => {
                 if size.width != runtime.window_size.x
                     || size.height != runtime.window_size.y {
-                    resizing = true;
-
-                    let window_size = Vec2u32::new(size.width.max(1), size.height.max(1));
-                    runtime.window_size = window_size;
-                    runtime.surface_config.width = window_size.x;
-                    runtime.surface_config.height = window_size.y;
-                    runtime.surface.configure(&runtime.device, &runtime.surface_config);
-
-                    result = app.update(&runtime, Event::Resized(window_size));
+                    is_resizing = true;
                 }
             }
             winit::event::Event::WindowEvent { event, .. } => {

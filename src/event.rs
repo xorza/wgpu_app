@@ -18,7 +18,6 @@ pub enum ElementState {
 pub enum Event<UserEvent> {
     Init,
     Resized(Vec2u32),
-    ResizeFinished(Vec2u32),
     WindowClose,
     RedrawFinished,
     MouseWheel(Vec2u32, f32),
