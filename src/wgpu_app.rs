@@ -187,6 +187,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                     }
 
                     result = app.update(&runtime, Event::RedrawFinished);
+                } else {
+                    *control_flow = ControlFlow::Wait;
                 }
             }
             winit::event::Event::WindowEvent {
@@ -205,7 +207,9 @@ pub fn run<AppType: WgpuApp>(title: &str) {
             }
             winit::event::Event::WindowEvent { event, .. } => {
                 let event = convert_event(event, &mut runtime.mouse_position);
-                result = app.update(&runtime, event);
+                if !matches!(event, Event::Unknown) {
+                    result = app.update(&runtime, event);
+                }
             }
             winit::event::Event::UserEvent(event) => {
                 result = app.update(&runtime, Event::Custom(event));
