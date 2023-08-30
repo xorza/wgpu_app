@@ -3,6 +3,9 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use bytemuck::{Pod, Zeroable};
 
+
+
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Pod, Zeroable, Default)]
 pub struct Vec2u32 {
@@ -16,6 +19,53 @@ pub struct Vec2i32 {
     pub x: i32,
     pub y: i32,
 }
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
+pub struct Vec2f32 {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
+pub struct Vec2f64 {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
+pub struct Vec3u32 {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
+pub struct Vec3i32 {
+    pub x: i32,
+    pub y: i32,
+    pub z: i32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
+pub struct Vec3f32 {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
+pub struct Vec3f64 {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+}
+
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Pod, Zeroable, Default)]
@@ -35,19 +85,6 @@ pub struct Vec4f32 {
     pub w: f32,
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
-pub struct Vec2f32 {
-    pub x: f32,
-    pub y: f32,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Pod, Zeroable, Default)]
-pub struct Vec2f64 {
-    pub x: f64,
-    pub y: f64,
-}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
@@ -82,8 +119,111 @@ impl Vec2f32 {
     pub fn all(v: f32) -> Self {
         Self { x: v, y: v }
     }
-    pub fn length_squared(self) -> f32 {
+    pub fn length_squared(&self) -> f32 {
         self.x * self.x + self.y * self.y
+    }
+    pub fn length(&self) -> f32 {
+        self.length_squared().sqrt()
+    }
+    pub fn normalize(self) -> Self {
+        let len = self.length();
+        Self {
+            x: self.x / len,
+            y: self.y / len,
+        }
+    }
+    pub fn dot(self, rhs: Self) -> f32 {
+        self.x * rhs.x + self.y * rhs.y
+    }
+    pub fn cross(self, rhs: Self) -> f32 {
+        self.x * rhs.y - self.y * rhs.x
+    }
+    pub fn distance(self, rhs: Self) -> f32 {
+        (self - rhs).length()
+    }
+    pub fn clamp(self, min: f32, max: f32) -> Self {
+        Self {
+            x: self.x.clamp(min, max),
+            y: self.y.clamp(min, max),
+        }
+    }
+    pub fn min(self, rhs: Self) -> Self {
+        Self {
+            x: self.x.min(rhs.x),
+            y: self.y.min(rhs.y),
+        }
+    }
+    pub fn max(self, rhs: Self) -> Self {
+        Self {
+            x: self.x.max(rhs.x),
+            y: self.y.max(rhs.y),
+        }
+    }
+}
+
+impl Vec3f32 {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
+        Self { x, y, z }
+    }
+    pub fn all(v: f32) -> Self {
+        Self { x: v, y: v, z: v }
+    }
+    pub fn length_squared(&self) -> f32 {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
+    pub fn length(&self) -> f32 {
+        self.length_squared().sqrt()
+    }
+    pub fn normalize(self) -> Self {
+        let len = self.length();
+        Self {
+            x: self.x / len,
+            y: self.y / len,
+            z: self.z / len,
+        }
+    }
+    pub fn dot(self, rhs: Self) -> f32 {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
+    }
+    pub fn cross(self, rhs: Vec3f32) -> f32 {
+        Vec3f32 {
+            x: self.y * rhs.z - self.z * rhs.y,
+            y: self.z * rhs.x - self.x * rhs.z,
+            z: self.x * rhs.y - self.y * rhs.x,
+        }.length()
+    }
+    pub fn distance(self, rhs: Self) -> f32 {
+        (self - rhs).length()
+    }
+    pub fn clamp(self, min: f32, max: f32) -> Self {
+        Self {
+            x: self.x.clamp(min, max),
+            y: self.y.clamp(min, max),
+            z: self.z.clamp(min, max),
+        }
+    }
+    pub fn min(self, rhs: Self) -> Self {
+        Self {
+            x: self.x.min(rhs.x),
+            y: self.y.min(rhs.y),
+            z: self.z.min(rhs.z),
+        }
+    }
+    pub fn max(self, rhs: Self) -> Self {
+        Self {
+            x: self.x.max(rhs.x),
+            y: self.y.max(rhs.y),
+            z: self.z.max(rhs.z),
+        }
+    }
+}
+
+impl Vec4f32 {
+    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+        Self { x, y, z, w }
+    }
+    pub fn all(v: f32) -> Self {
+        Self { x: v, y: v, z: v, w: v }
     }
 }
 
@@ -97,15 +237,6 @@ impl Vec2f64 {
 
     pub fn length_squared(self) -> f64 {
         self.x * self.x + self.y * self.y
-    }
-}
-
-impl Vec4f32 {
-    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
-        Self { x, y, z, w }
-    }
-    pub fn all(v: f32) -> Self {
-        Self { x: v, y: v, z: v, w: v }
     }
 }
 
@@ -184,7 +315,7 @@ impl Div for Vec2u32 {
     }
 }
 impl Div<u32> for Vec2u32 {
-    type Output = Vec2u32;
+    type Output = Self;
 
     fn div(self, scalar: u32) -> Self::Output {
         Vec2u32 {
@@ -261,7 +392,7 @@ impl Sub for Vec2i32 {
     }
 }
 impl Div<i32> for Vec2i32 {
-    type Output = Vec2i32;
+    type Output = Self;
 
     fn div(self, scalar: i32) -> Self::Output {
         Vec2i32 {
@@ -383,7 +514,7 @@ impl Mul for Vec2f64 {
     }
 }
 impl Mul<f64> for Vec2f64 {
-    type Output = Vec2f64;
+    type Output = Self;
 
     fn mul(self, scalar: f64) -> Self::Output {
         Vec2f64 {
@@ -393,7 +524,7 @@ impl Mul<f64> for Vec2f64 {
     }
 }
 impl Div<f64> for Vec2f64 {
-    type Output = Vec2f64;
+    type Output = Self;
 
     fn div(self, scalar: f64) -> Self::Output {
         Vec2f64 {
@@ -403,7 +534,7 @@ impl Div<f64> for Vec2f64 {
     }
 }
 impl Sub<f64> for Vec2f64 {
-    type Output = Vec2f64;
+    type Output = Self;
 
     fn sub(self, scalar: f64) -> Self::Output {
         Vec2f64 {
@@ -448,6 +579,12 @@ impl From<Vec2f32> for Vec2f64 {
 }
 
 
+impl AddAssign for Vec2f32 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
 impl Mul<Vec2f32> for f32 {
     type Output = Vec2f32;
 
@@ -459,7 +596,7 @@ impl Mul<Vec2f32> for f32 {
     }
 }
 impl Mul<f32> for Vec2f32 {
-    type Output = Vec2f32;
+    type Output = Self;
 
     fn mul(self, scalar: f32) -> Self::Output {
         Vec2f32 {
@@ -469,7 +606,7 @@ impl Mul<f32> for Vec2f32 {
     }
 }
 impl Sub<f32> for Vec2f32 {
-    type Output = Vec2f32;
+    type Output = Self;
 
     fn sub(self, scalar: f32) -> Self::Output {
         Vec2f32 {
@@ -479,7 +616,7 @@ impl Sub<f32> for Vec2f32 {
     }
 }
 impl Div<f32> for Vec2f32 {
-    type Output = Vec2f32;
+    type Output = Self;
 
     fn div(self, scalar: f32) -> Self::Output {
         Vec2f32 {
@@ -543,6 +680,117 @@ impl From<Vec2f64> for Vec2f32 {
     }
 }
 
+impl AddAssign for Vec3f32 {
+    fn add_assign(&mut self, rhs: Self) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+impl Mul<Vec3f32> for f32 {
+    type Output = Vec3f32;
+
+    fn mul(self, vec: Vec3f32) -> Self::Output {
+        Vec3f32 {
+            x: vec.x * self,
+            y: vec.y * self,
+            z: vec.z * self,
+        }
+    }
+}
+impl Mul<f32> for Vec3f32 {
+    type Output = Self;
+
+    fn mul(self, scalar: f32) -> Self::Output {
+        Vec3f32 {
+            x: self.x * scalar,
+            y: self.y * scalar,
+            z: self.z * scalar,
+        }
+    }
+}
+impl Sub<f32> for Vec3f32 {
+    type Output = Self;
+
+    fn sub(self, scalar: f32) -> Self::Output {
+        Vec3f32 {
+            x: self.x - scalar,
+            y: self.y - scalar,
+            z: self.z - scalar,
+        }
+    }
+}
+impl Div<f32> for Vec3f32 {
+    type Output = Self;
+
+    fn div(self, scalar: f32) -> Self::Output {
+        Vec3f32 {
+            x: self.x / scalar,
+            y: self.y / scalar,
+            z: self.z / scalar,
+        }
+    }
+}
+impl Div for Vec3f32 {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+        }
+    }
+}
+impl Sub for Vec3f32 {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+impl Add for Vec3f32 {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        }
+    }
+}
+impl From<Vec3i32> for Vec3f32 {
+    fn from(value: Vec3i32) -> Self {
+        Self {
+            x: value.x as f32,
+            y: value.y as f32,
+            z: value.z as f32,
+        }
+    }
+}
+impl From<Vec3u32> for Vec3f32 {
+    fn from(value: Vec3u32) -> Self {
+        Self {
+            x: value.x as f32,
+            y: value.y as f32,
+            z: value.z as f32,
+        }
+    }
+}
+impl From<Vec3f64> for Vec3f32 {
+    fn from(value: Vec3f64) -> Self {
+        Self {
+            x: value.x as f32,
+            y: value.y as f32,
+            z: value.z as f32,
+        }
+    }
+}
+
 
 impl Mat4x4f32 {
     pub fn as_bytes(&self) -> &[u8] {
@@ -552,7 +800,7 @@ impl Mat4x4f32 {
         size_of::<Mat4x4f32>() as u32
     }
 
-    pub fn translate2d(&mut self, vec: Vec2f32) -> &mut Self {
+    pub fn translate(&mut self, vec: Vec3f32) -> &mut Self {
         self.0[12] += vec.x * self.0[0];
         self.0[13] += vec.y * self.0[5];
 
@@ -563,6 +811,17 @@ impl Mat4x4f32 {
         self.0[5] *= factor.y;
 
         self
+    }
+
+    pub fn ortho(size: f32, aspect_ratio: f32, near: f32, far: f32) -> Self {
+        let mut result = Self::default();
+
+        result.0[0] = 1.0 / (size * aspect_ratio);
+        result.0[5] = 1.0 / size;
+        result.0[10] = -2.0 / (far - near);
+        result.0[14] = -(far + near) / (far - near);
+
+        result
     }
 }
 impl Default for Mat4x4f32 {

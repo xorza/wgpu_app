@@ -3,14 +3,14 @@ use std::mem::size_of;
 use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-struct Vert {
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+pub struct Vert {
     pos: [f32; 4],
     uw: [f32; 2],
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct ScreenRect([Vert; 4]);
 
 impl Default for ScreenRect {
