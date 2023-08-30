@@ -3,9 +3,6 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use bytemuck::{Pod, Zeroable};
 
-
-
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Pod, Zeroable, Default)]
 pub struct Vec2u32 {
@@ -66,7 +63,6 @@ pub struct Vec3f64 {
     pub z: f64,
 }
 
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Pod, Zeroable, Default)]
 pub struct Vec4u32 {
@@ -84,7 +80,6 @@ pub struct Vec4f32 {
     pub z: f32,
     pub w: f32,
 }
-
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
@@ -112,6 +107,28 @@ pub struct RectF64 {
 }
 
 
+impl Vec2i32 {
+    pub fn new(x: i32, y: i32) -> Self {
+        Self { x, y }
+    }
+    pub fn all(v: i32) -> Self {
+        Self { x: v, y: v }
+    }
+    pub fn length_squared(self) -> i32 {
+        self.x * self.x + self.y * self.y
+    }
+}
+impl Vec2u32 {
+    pub fn new(x: u32, y: u32) -> Self {
+        Self { x, y }
+    }
+    pub fn all(v: u32) -> Self {
+        Self { x: v, y: v }
+    }
+    pub fn length_squared(self) -> u32 {
+        self.x * self.x + self.y * self.y
+    }
+}
 impl Vec2f32 {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
@@ -158,6 +175,18 @@ impl Vec2f32 {
             x: self.x.max(rhs.x),
             y: self.y.max(rhs.y),
         }
+    }
+}
+impl Vec2f64 {
+    pub fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+    pub fn all(v: f64) -> Self {
+        Self { x: v, y: v }
+    }
+
+    pub fn length_squared(self) -> f64 {
+        self.x * self.x + self.y * self.y
     }
 }
 
@@ -218,28 +247,6 @@ impl Vec3f32 {
     }
 }
 
-impl Vec4f32 {
-    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
-        Self { x, y, z, w }
-    }
-    pub fn all(v: f32) -> Self {
-        Self { x: v, y: v, z: v, w: v }
-    }
-}
-
-impl Vec2f64 {
-    pub fn new(x: f64, y: f64) -> Self {
-        Self { x, y }
-    }
-    pub fn all(v: f64) -> Self {
-        Self { x: v, y: v }
-    }
-
-    pub fn length_squared(self) -> f64 {
-        self.x * self.x + self.y * self.y
-    }
-}
-
 impl Vec4u32 {
     pub fn new(x: u32, y: u32, z: u32, w: u32) -> Self {
         Self { x, y, z, w }
@@ -248,28 +255,12 @@ impl Vec4u32 {
         Self { x: v, y: v, z: v, w: v }
     }
 }
-
-impl Vec2u32 {
-    pub fn new(x: u32, y: u32) -> Self {
-        Self { x, y }
+impl Vec4f32 {
+    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+        Self { x, y, z, w }
     }
-    pub fn all(v: u32) -> Self {
-        Self { x: v, y: v }
-    }
-    pub fn length_squared(self) -> u32 {
-        self.x * self.x + self.y * self.y
-    }
-}
-
-impl Vec2i32 {
-    pub fn new(x: i32, y: i32) -> Self {
-        Self { x, y }
-    }
-    pub fn all(v: i32) -> Self {
-        Self { x: v, y: v }
-    }
-    pub fn length_squared(self) -> i32 {
-        self.x * self.x + self.y * self.y
+    pub fn all(v: f32) -> Self {
+        Self { x: v, y: v, z: v, w: v }
     }
 }
 
@@ -438,7 +429,6 @@ impl From<Vec2f64> for Vec2i32 {
     }
 }
 
-
 impl AddAssign for Vec2f64 {
     fn add_assign(&mut self, rhs: Self) {
         self.x += rhs.x;
@@ -577,7 +567,6 @@ impl From<Vec2f32> for Vec2f64 {
         }
     }
 }
-
 
 impl AddAssign for Vec2f32 {
     fn add_assign(&mut self, rhs: Self) {
@@ -791,7 +780,6 @@ impl From<Vec3f64> for Vec3f32 {
     }
 }
 
-
 impl Mat4x4f32 {
     pub fn as_bytes(&self) -> &[u8] {
         bytemuck::bytes_of(self)
@@ -837,7 +825,6 @@ impl Default for Mat4x4f32 {
     }
 }
 
-
 impl RectU32 {
     pub fn new(pos: Vec2u32, size: Vec2u32) -> Self {
         Self {
@@ -855,7 +842,6 @@ impl RectU32 {
         self.pos + self.size / 2
     }
 }
-
 
 impl RectI32 {
     pub fn new(pos: Vec2i32, size: Vec2i32) -> Self {
@@ -882,7 +868,6 @@ impl From<RectU32> for RectI32 {
         }
     }
 }
-
 
 impl RectF64 {
     pub fn pos_size(pos: Vec2f64, size: Vec2f64) -> Self {
