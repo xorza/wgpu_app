@@ -14,7 +14,6 @@ pub struct Circle {
     indices: Vec<u32>,
 }
 
-
 impl Circle {
     pub fn from_radius_segments(radius: f32, segments: u32) -> Self {
         let mut vertices = Vec::with_capacity(segments as usize + 1);
@@ -37,10 +36,7 @@ impl Circle {
             indices.push(i + 2);
         }
 
-        Self {
-            vertices,
-            indices,
-        }
+        Self { vertices, indices }
     }
     pub fn from_radius_tolerance(radius: f32, tolerance: f32) -> Self {
         let theta = 2.0 * (1.0 - tolerance / radius).acos();

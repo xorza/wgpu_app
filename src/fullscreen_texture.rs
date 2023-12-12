@@ -21,7 +21,6 @@ struct TextureBindGroup {
     bind_group: wgpu::BindGroup,
 }
 
-
 impl FullScreenTexture {
     pub fn new(
         device: &wgpu::Device,
@@ -60,35 +59,33 @@ impl FullScreenTexture {
             ..Default::default()
         });
 
-        let bind_group_layout = device.create_bind_group_layout(
-            &wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                        count: None,
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        view_dimension: wgpu::TextureViewDimension::D2,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
-                        count: None,
-                    },
-                ],
-                label: None,
-            });
+                    count: None,
+                },
+            ],
+            label: None,
+        });
 
-        let pipeline_layout = device.create_pipeline_layout(
-            &wgpu::PipelineLayoutDescriptor {
-                bind_group_layouts: &[&bind_group_layout],
-                push_constant_ranges: &[],
-                label: None,
-            });
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+            label: None,
+        });
 
         let screen_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -106,9 +103,7 @@ impl FullScreenTexture {
             fragment: Some(wgpu::FragmentState {
                 module: &screen_shader,
                 entry_point: "fs_main",
-                targets: &[
-                    Some(surface_format.into()),
-                ],
+                targets: &[Some(surface_format.into())],
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,
@@ -122,12 +117,7 @@ impl FullScreenTexture {
             multiview: None,
         });
 
-        let bind_group = TextureBindGroup::new(
-            device,
-            &bind_group_layout,
-            &sampler,
-            window_size,
-        );
+        let bind_group = TextureBindGroup::new(device, &bind_group_layout, &sampler, window_size);
 
         Self {
             bind_group,
@@ -145,26 +135,23 @@ impl FullScreenTexture {
         queue: &wgpu::Queue,
         surface_view: &wgpu::TextureView,
     ) {
-        let mut command_encoder = device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut command_encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
-            let mut render_pass = command_encoder
-                .begin_render_pass(
-                    &wgpu::RenderPassDescriptor {
-                        label: None,
-                        color_attachments: &[
-                            Some(wgpu::RenderPassColorAttachment {
-                                view: surface_view,
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                                    store: true,
-                                },
-                            }),
-                        ],
-                        depth_stencil_attachment: None,
-                    }
-                );
+            let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: surface_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
 
             render_pass.set_pipeline(&self.screen_pipeline);
             render_pass.set_vertex_buffer(0, self.screen_rect_buf.slice(..));
@@ -179,12 +166,8 @@ impl FullScreenTexture {
     pub fn resize_window(&mut self, device: &wgpu::Device, window_size: Vec2u32) {
         self.window_size = window_size;
 
-        self.bind_group = TextureBindGroup::new(
-            device,
-            &self.bind_group_layout,
-            &self.sampler,
-            window_size,
-        );
+        self.bind_group =
+            TextureBindGroup::new(device, &self.bind_group_layout, &self.sampler, window_size);
     }
 
     pub fn get_texture(&self) -> &wgpu::Texture {
@@ -197,7 +180,8 @@ impl TextureBindGroup {
         device: &wgpu::Device,
         bindind_group_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
-        window_size: Vec2u32) -> Self {
+        window_size: Vec2u32,
+    ) -> Self {
         let texture_extent = wgpu::Extent3d {
             width: window_size.x,
             height: window_size.y,
@@ -210,7 +194,9 @@ impl TextureBindGroup {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
             label: None,
         });

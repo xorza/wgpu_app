@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wgpu = "*"
-winit = "*"
+wgpu = "0.18.0"
+winit = "0.28.7"
 anyhow = "*"
 bytemuck = { version = "*", features = ["derive"] }
 pollster = "*"

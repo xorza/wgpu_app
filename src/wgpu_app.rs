@@ -20,11 +20,7 @@ pub trait WgpuApp: 'static {
         event: Event<Self::UserEventType>,
     ) -> EventResult;
 
-    fn render(
-        &mut self,
-        runtime: &Runtime<Self::UserEventType>,
-        surface_view: &wgpu::TextureView,
-    );
+    fn render(&mut self, runtime: &Runtime<Self::UserEventType>, surface_view: &wgpu::TextureView);
 }
 
 pub struct Runtime<UserEventType: 'static> {
@@ -44,28 +40,29 @@ pub struct Runtime<UserEventType: 'static> {
     pub mouse_position: Vec2u32,
 }
 
-
 pub fn run<AppType: WgpuApp>(title: &str) {
     // setup
 
     let event_loop: WinitEventLoop<AppType::UserEventType> =
         EventLoopBuilder::<AppType::UserEventType>::with_user_event()
             .build();
-    let window =
-        winit::window::WindowBuilder::new()
-            .with_title(title)
-            // .with_inner_size(LogicalSize::new(1024, 512))
-            .build(&event_loop)
-            .expect("Failed to create window.");
+    let window = winit::window::WindowBuilder::new()
+        .with_title(title)
+        // .with_inner_size(LogicalSize::new(1024, 512))
+        .build(&event_loop)
+        .expect("Failed to create window.");
 
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::PRIMARY,
-        dx12_shader_compiler: wgpu::Dx12Compiler::Dxc { dxil_path: None, dxc_path: None },
+        dx12_shader_compiler: wgpu::Dx12Compiler::Dxc {
+            dxil_path: None,
+            dxc_path: None,
+        },
+        gles_minor_version: Default::default(),
+        flags: Default::default(),
     });
     let size = window.inner_size();
-    let surface = unsafe {
-        instance.create_surface(&window).unwrap()
-    };
+    let surface = unsafe { instance.create_surface(&window).unwrap() };
 
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
@@ -80,7 +77,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
     let limits = wgpu::Limits {
         max_push_constant_size: 1024,
         ..Default::default()
-    }.using_resolution(adapter.limits());
+    }
+        .using_resolution(adapter.limits());
 
     let (device, queue) = adapter
         .request_device(
@@ -94,14 +92,12 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         .block_on()
         .expect("Unable to find a suitable GPU adapter.");
 
-
     let mut surface_config = surface
         .get_default_config(&adapter, size.width, size.height)
         .expect("Surface isn't supported by the adapter.");
     surface_config.format = surface_config.format.add_srgb_suffix();
     surface_config.view_formats.push(surface_config.format);
     surface.configure(&device, &surface_config);
-
 
     // run
     let mut is_redrawing = false;
@@ -142,7 +138,9 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                     runtime.window_size = window_size;
                     runtime.surface_config.width = window_size.x;
                     runtime.surface_config.height = window_size.y;
-                    runtime.surface.configure(&runtime.device, &runtime.surface_config);
+                    runtime
+                        .surface
+                        .configure(&runtime.device, &runtime.surface_config);
 
                     result = app.update(&runtime, Event::Resized(window_size));
                 } else {
@@ -152,29 +150,32 @@ pub fn run<AppType: WgpuApp>(title: &str) {
             }
             winit::event::Event::RedrawRequested(_) => {
                 assert!(!is_redrawing);
-                runtime.device.push_error_scope(wgpu::ErrorFilter::Validation);
+                runtime
+                    .device
+                    .push_error_scope(wgpu::ErrorFilter::Validation);
                 is_redrawing = true;
 
                 let surface_texture = match runtime.surface.get_current_texture() {
                     Ok(frame) => frame,
                     Err(_) => {
-                        runtime.surface.configure(&runtime.device, &runtime.surface_config);
-                        runtime.surface
+                        runtime
+                            .surface
+                            .configure(&runtime.device, &runtime.surface_config);
+                        runtime
+                            .surface
                             .get_current_texture()
                             .expect("Failed to acquire next surface texture.")
                     }
                 };
-                let surface_texture_view = surface_texture.texture.create_view(
-                    &wgpu::TextureViewDescriptor {
-                        format: Some(runtime.surface_config.format),
-                        ..wgpu::TextureViewDescriptor::default()
-                    }
-                );
+                let surface_texture_view =
+                    surface_texture
+                        .texture
+                        .create_view(&wgpu::TextureViewDescriptor {
+                            format: Some(runtime.surface_config.format),
+                            ..wgpu::TextureViewDescriptor::default()
+                        });
 
-                app.render(
-                    &runtime,
-                    &surface_texture_view,
-                );
+                app.render(&runtime, &surface_texture_view);
 
                 surface_texture.present();
             }
@@ -200,8 +201,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                 },
                 ..
             } => {
-                if size.width != runtime.window_size.x
-                    || size.height != runtime.window_size.y {
+                if size.width != runtime.window_size.x || size.height != runtime.window_size.y {
                     is_resizing = true;
                 }
             }
@@ -221,7 +221,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         match result {
             EventResult::Continue => {}
             EventResult::Redraw => window.request_redraw(),
-            EventResult::Exit => *control_flow = ControlFlow::Exit
+            EventResult::Exit => *control_flow = ControlFlow::Exit,
         }
     });
 }

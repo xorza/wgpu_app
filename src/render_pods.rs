@@ -17,10 +17,22 @@ impl Default for ScreenRect {
     fn default() -> ScreenRect {
         ScreenRect([
             // @formatter:off
-            Vert { pos: [-1.0, -1.0, 0.0, 1.0], uw: [0.0, 0.0] },
-            Vert { pos: [-1.0,  1.0, 0.0, 1.0], uw: [0.0, 1.0] },
-            Vert { pos: [ 1.0, -1.0, 0.0, 1.0], uw: [1.0, 0.0] },
-            Vert { pos: [ 1.0,  1.0, 0.0, 1.0], uw: [1.0, 1.0] },
+            Vert {
+                pos: [-1.0, -1.0, 0.0, 1.0],
+                uw: [0.0, 0.0],
+            },
+            Vert {
+                pos: [-1.0, 1.0, 0.0, 1.0],
+                uw: [0.0, 1.0],
+            },
+            Vert {
+                pos: [1.0, -1.0, 0.0, 1.0],
+                uw: [1.0, 0.0],
+            },
+            Vert {
+                pos: [1.0, 1.0, 0.0, 1.0],
+                uw: [1.0, 1.0],
+            },
             // @formatter:on
         ])
     }
