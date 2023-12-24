@@ -155,9 +155,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                     .push_error_scope(wgpu::ErrorFilter::Validation);
                 is_redrawing = true;
 
-                let surface_texture = match runtime.surface.get_current_texture() {
-                    Ok(frame) => frame,
-                    Err(_) => {
+                let surface_texture = runtime.surface.get_current_texture()
+                    .unwrap_or_else(|_| {
                         runtime
                             .surface
                             .configure(&runtime.device, &runtime.surface_config);
@@ -165,8 +164,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                             .surface
                             .get_current_texture()
                             .expect("Failed to acquire next surface texture.")
-                    }
-                };
+                    });
                 let surface_texture_view =
                     surface_texture
                         .texture
