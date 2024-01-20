@@ -5,6 +5,8 @@ pub enum MouseButtons {
     Left,
     Right,
     Middle,
+    Back,
+    Forward,
     Other(u8),
 }
 
@@ -53,6 +55,8 @@ impl From<winit::event::MouseButton> for MouseButtons {
             winit::event::MouseButton::Left => MouseButtons::Left,
             winit::event::MouseButton::Right => MouseButtons::Right,
             winit::event::MouseButton::Middle => MouseButtons::Middle,
+            winit::event::MouseButton::Back => MouseButtons::Back,
+            winit::event::MouseButton::Forward => MouseButtons::Forward,
             winit::event::MouseButton::Other(other) => MouseButtons::Other(other as u8),
         }
     }

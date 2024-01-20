@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use bytemuck::Zeroable;
 use pollster::FutureExt;
-use winit::event_loop::{ControlFlow, EventLoop as WinitEventLoop, EventLoopBuilder};
+use winit::event_loop::{EventLoop as WinitEventLoop, EventLoopBuilder};
 
 use crate::event::{convert_event, Event, EventLoop, EventResult};
 use crate::math::Vec2u32;
@@ -23,12 +23,12 @@ pub trait WgpuApp: 'static {
     fn render(&mut self, runtime: &Runtime<Self::UserEventType>, surface_view: &wgpu::TextureView);
 }
 
-pub struct Runtime<UserEventType: 'static> {
-    // window: winit::window::Window,
+pub struct Runtime<'a, UserEventType: 'static> {
+    pub window: &'a winit::window::Window,
     pub event_loop: EventLoop<UserEventType>,
     // instance: wgpu::Instance,
     // size: winit::dpi::PhysicalSize<u32>,
-    pub surface: wgpu::Surface,
+    pub surface: wgpu::Surface<'a>,
     pub surface_config: wgpu::SurfaceConfiguration,
     // adapter: wgpu::Adapter,
     pub device: wgpu::Device,
@@ -45,7 +45,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
 
     let event_loop: WinitEventLoop<AppType::UserEventType> =
         EventLoopBuilder::<AppType::UserEventType>::with_user_event()
-            .build();
+            .build()
+            .unwrap();
     let window = winit::window::WindowBuilder::new()
         .with_title(title)
         // .with_inner_size(LogicalSize::new(1024, 512))
@@ -62,7 +63,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         flags: Default::default(),
     });
     let size = window.inner_size();
-    let surface = unsafe { instance.create_surface(&window).unwrap() };
+    let surface = instance.create_surface(&window).unwrap();
 
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
@@ -74,7 +75,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         .expect("No suitable GPU adapters found on the system.");
 
     // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the surface.
-    let limits = wgpu::Limits {
+    let required_limits = wgpu::Limits {
         max_push_constant_size: 1024,
         ..Default::default()
     }
@@ -84,8 +85,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         .request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                features: wgpu::Features::PUSH_CONSTANTS,
-                limits,
+                required_features: wgpu::Features::PUSH_CONSTANTS,
+                required_limits,
             },
             None,
         )
@@ -104,6 +105,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
     let mut is_resizing = false;
 
     let mut runtime = Runtime {
+        window: &window,
         event_loop: EventLoop {
             event_loop_proxy: event_loop.create_proxy(),
         },
@@ -123,45 +125,53 @@ pub fn run<AppType: WgpuApp>(title: &str) {
         EventResult::Exit => return,
     }
 
-    event_loop.run(move |event, _target, control_flow| {
+    event_loop.run(move |event, target| {
         let mut result: EventResult = EventResult::Continue;
 
         match event {
-            winit::event::Event::MainEventsCleared => {
+            winit::event::Event::AboutToWait => {
                 if is_resizing {
                     is_resizing = false;
 
                     let window_size = Vec2u32::new(
-                        window.inner_size().width.max(1),
-                        window.inner_size().height.max(1),
+                        runtime.window.inner_size().width.max(1),
+                        runtime.window.inner_size().height.max(1),
                     );
                     runtime.window_size = window_size;
                     runtime.surface_config.width = window_size.x;
                     runtime.surface_config.height = window_size.y;
-                    runtime
-                        .surface
+                    runtime.surface
                         .configure(&runtime.device, &runtime.surface_config);
 
                     result = app.update(&runtime, Event::Resized(window_size));
-                } else {
-                    *control_flow = ControlFlow::Wait;
-                    return;
+                } else if is_redrawing {
+                    is_redrawing = false;
+
+                    if let Some(error) = runtime.device.pop_error_scope().block_on() {
+                        panic!("Device error: {:?}", error);
+                    }
+
+                    result = app.update(&runtime, Event::RedrawFinished);
                 }
             }
-            winit::event::Event::RedrawRequested(_) => {
+            winit::event::Event::WindowEvent {
+                event:
+                winit::event::WindowEvent::RedrawRequested,
+                ..
+            } => {
                 assert!(!is_redrawing);
                 runtime
                     .device
                     .push_error_scope(wgpu::ErrorFilter::Validation);
                 is_redrawing = true;
 
-                let surface_texture = runtime.surface.get_current_texture()
+                let surface_texture = runtime
+                    .surface
+                    .get_current_texture()
                     .unwrap_or_else(|_| {
-                        runtime
-                            .surface
+                        runtime.surface
                             .configure(&runtime.device, &runtime.surface_config);
-                        runtime
-                            .surface
+                        runtime.surface
                             .get_current_texture()
                             .expect("Failed to acquire next surface texture.")
                     });
@@ -177,26 +187,10 @@ pub fn run<AppType: WgpuApp>(title: &str) {
 
                 surface_texture.present();
             }
-            winit::event::Event::RedrawEventsCleared => {
-                if is_redrawing {
-                    is_redrawing = false;
 
-                    if let Some(error) = runtime.device.pop_error_scope().block_on() {
-                        panic!("Device error: {:?}", error);
-                    }
-
-                    result = app.update(&runtime, Event::RedrawFinished);
-                } else {
-                    *control_flow = ControlFlow::Wait;
-                }
-            }
             winit::event::Event::WindowEvent {
                 event:
-                winit::event::WindowEvent::Resized(size)
-                | winit::event::WindowEvent::ScaleFactorChanged {
-                    new_inner_size: &mut size,
-                    ..
-                },
+                winit::event::WindowEvent::Resized(size),
                 ..
             } => {
                 if size.width != runtime.window_size.x || size.height != runtime.window_size.y {
@@ -218,8 +212,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
 
         match result {
             EventResult::Continue => {}
-            EventResult::Redraw => window.request_redraw(),
-            EventResult::Exit => *control_flow = ControlFlow::Exit,
+            EventResult::Redraw => runtime.window.request_redraw(),
+            EventResult::Exit => target.exit(),
         }
-    });
+    }).expect("TODO: panic message");
 }
