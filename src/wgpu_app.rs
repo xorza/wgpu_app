@@ -144,7 +144,8 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                         .configure(&runtime.device, &runtime.surface_config);
 
                     result = app.update(&runtime, Event::Resized(window_size));
-                } else if is_redrawing {
+                }
+                if is_redrawing {
                     is_redrawing = false;
 
                     if let Some(error) = runtime.device.pop_error_scope().block_on() {
@@ -159,7 +160,6 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                 winit::event::WindowEvent::RedrawRequested,
                 ..
             } => {
-                assert!(!is_redrawing);
                 runtime
                     .device
                     .push_error_scope(wgpu::ErrorFilter::Validation);
@@ -184,6 +184,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                         });
 
                 app.render(&runtime, &surface_texture_view);
+                println!("rendered");
 
                 surface_texture.present();
             }
