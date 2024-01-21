@@ -9,3 +9,7 @@ winit = "0.29.10"
 anyhow = "*"
 bytemuck = { version = "*", features = ["derive"] }
 pollster = "*"
+
+[[example]]
+name = "texture_from_cpu"
+path = "Examples/texture_from_cpu.rs"
