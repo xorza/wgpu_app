@@ -184,7 +184,7 @@ pub fn run<AppType: WgpuApp>(title: &str) {
                         });
 
                 app.render(&runtime, &surface_texture_view);
-                println!("rendered");
+                // println!("rendered");
 
                 surface_texture.present();
             }
