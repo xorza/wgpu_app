@@ -37,7 +37,7 @@ impl FullScreenTexture {
                     shader_location: 0,
                 },
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x4,
+                    format: wgpu::VertexFormat::Float32x2,
                     offset: 4 * 4,
                     shader_location: 1,
                 },
@@ -99,11 +99,13 @@ impl FullScreenTexture {
                 module: &screen_shader,
                 entry_point: "vs_main",
                 buffers: &vertex_buffer_layout,
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &screen_shader,
                 entry_point: "fs_main",
                 targets: &[Some(surface_format.into())],
+                compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
                 cull_mode: None,
