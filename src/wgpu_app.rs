@@ -29,9 +29,7 @@ pub struct AppContext<'window> {
     is_resizing: bool,
 }
 
-
 pub struct UserEventType {}
-
 
 pub trait WgpuApp {
     fn window_event(&mut self, app_context: &AppContext, event: WindowEvent) -> EventResult;
@@ -129,11 +127,19 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         window.request_redraw();
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _user_event: UserEventType) {
-        //...
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, user_event: UserEventType) {
+        if self.main_window_context.is_none() {
+            return;
+        }
+
+        let _ = (event_loop, user_event);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: winit::event::WindowEvent) {
+        if self.main_window_context.is_none() {
+            return;
+        }
+
         match event {
             winit::event::WindowEvent::RedrawRequested => {
                 self.redraw();
@@ -143,11 +149,12 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             }
             winit::event::WindowEvent::Resized(_new_size) => {
                 let app_context = self.main_window_context.as_mut().unwrap();
+                app_context.is_resizing = true;
+
                 let window_size = physical_size_to_vec2u32(app_context.window.inner_size());
                 if window_size == app_context.window_size {
                     return;
                 }
-                app_context.is_resizing = true;
             }
 
             _ => {
@@ -160,9 +167,19 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         }
     }
 
-    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: DeviceId, _event: DeviceEvent) {}
+    fn device_event(&mut self, event_loop: &ActiveEventLoop, window_id: DeviceId, event: DeviceEvent) {
+        if self.main_window_context.is_none() {
+            return;
+        }
+
+        let _ = (event_loop, window_id, event);
+    }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.main_window_context.is_none() {
+            return;
+        }
+
         let window_context = self.main_window_context.as_mut().unwrap();
 
         let resize_result =
