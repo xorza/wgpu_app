@@ -115,7 +115,6 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         surface_config.view_formats.push(surface_config.format);
         surface.configure(&device, &surface_config);
 
-
         self.main_window_context = Some(AppContext {
             window: window.clone(),
             surface,
@@ -160,7 +159,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
                 let window_context = self.main_window_context.as_mut().unwrap();
                 let event = WindowEvent::convert_event(&event, &mut window_context.mouse_position);
                 if !matches!(event, WindowEvent::Unknown) {
-                    // result = app.update(&runtime, event);
+                    self.app.as_mut().unwrap().window_event(window_context, event);
                 }
             }
         }
@@ -168,30 +167,44 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
     fn device_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: DeviceId, _event: DeviceEvent) {}
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        let app_context = self.main_window_context.as_mut().unwrap();
-        if app_context.is_resizing {
-            app_context.is_resizing = false;
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let window_context = self.main_window_context.as_mut().unwrap();
 
-            let window_size = physical_size_to_vec2u32(app_context.window.inner_size());
-            app_context.window_size = window_size;
-            app_context.surface_config.width = window_size.x;
-            app_context.surface_config.height = window_size.y;
-            app_context.surface.configure(&app_context.device, &app_context.surface_config);
+        let resize_result =
+            if window_context.is_resizing {
+                window_context.is_resizing = false;
 
-            self.app.as_mut().unwrap().window_event(app_context, WindowEvent::Resized(window_size));
-            app_context.window.request_redraw();
-        }
+                let window_size = physical_size_to_vec2u32(window_context.window.inner_size());
+                window_context.window_size = window_size;
+                window_context.surface_config.width = window_size.x;
+                window_context.surface_config.height = window_size.y;
+                window_context.surface.configure(&window_context.device, &window_context.surface_config);
 
+                self.app.as_mut().unwrap().window_event(window_context, WindowEvent::Resized(window_size))
+            } else {
+                EventResult::Continue
+            };
 
-        if app_context.is_redrawing {
-            app_context.is_redrawing = false;
+        let finish_redraw_result =
+            if window_context.is_redrawing {
+                window_context.is_redrawing = false;
 
-            if let Some(error) = app_context.device.pop_error_scope().block_on() {
-                panic!("Device error: {:?}", error);
+                if let Some(error) = window_context.device.pop_error_scope().block_on() {
+                    panic!("Device error: {:?}", error);
+                }
+
+                self.app.as_mut().unwrap().window_event(window_context, WindowEvent::RedrawFinished)
+            } else { EventResult::Continue };
+
+        match (resize_result, finish_redraw_result) {
+            (EventResult::Exit, _) | (_, EventResult::Exit) => {
+                event_loop.exit();
+            }
+            (EventResult::Redraw, _) | (_, EventResult::Redraw) => {
+                window_context.window.request_redraw();
             }
 
-            // result = app.update(&runtime, Event::RedrawFinished);
+            _ => {}
         }
     }
 }
