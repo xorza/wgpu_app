@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::sync::Arc;
 use std::time::Instant;
 
 use pollster::FutureExt;
@@ -11,10 +12,10 @@ use crate::events::{EventResult, WindowEvent};
 use crate::math::Vec2u32;
 
 #[derive(Debug)]
-pub struct AppContext { //<'window>
-    // pub window: &'window Window,
+pub struct AppContext<'window> {
+    pub window: Arc<Window>,
 
-    // pub surface: wgpu::Surface<'window>,
+    pub surface: wgpu::Surface<'window>,
     pub surface_config: wgpu::SurfaceConfiguration,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -41,11 +42,8 @@ pub trait WgpuApp {
 struct AppState<'window> {
     event_loop_proxy: EventLoopProxy<UserEventType>,
 
-    main_window: Option<Window>,
-    main_window_context: Option<AppContext>, //<'window>
+    main_window_context: Option<AppContext<'window>>,
 
-    pub surface: Option<wgpu::Surface<'window>>,
-    
     start_time: Instant,
 
     app: Option<Box<dyn WgpuApp>>,
@@ -61,9 +59,8 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
         let window_attr = Window::default_attributes()
             .with_title("title");
-        self.main_window = Some(event_loop.create_window(window_attr).unwrap());
-        // let window = event_loop.create_window(window_attr).unwrap();
-        let window = self.main_window.as_ref().unwrap();
+        let window = Arc::new(event_loop.create_window(window_attr).unwrap());
+
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -76,19 +73,18 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             flags: Default::default(),
         });
 
-        let surface = unsafe {
-            let target = wgpu::SurfaceTargetUnsafe::from_window(&window).unwrap();
-            instance.create_surface_unsafe(target).unwrap()
-        };
-        
-        self.surface = Some(surface);
-        let surface = self.surface.as_ref().unwrap();
+        // let surface = unsafe {
+        //     let target = wgpu::SurfaceTargetUnsafe::from_window(&window).unwrap();
+        //     instance.create_surface_unsafe(target).unwrap()
+        // };
+        let surface = instance.create_surface(window.clone()).unwrap();
+
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::LowPower,
                 force_fallback_adapter: false,
-                compatible_surface: Some(surface),
+                compatible_surface: Some(&surface),
             })
             .block_on()
             .expect("No suitable GPU adapters found on the system.");
@@ -121,8 +117,8 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
 
         self.main_window_context = Some(AppContext {
-            // window,
-            // surface,
+            window: window.clone(),
+            surface,
             surface_config,
             device,
             queue,
@@ -136,7 +132,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         let app = (self.app_ctor)(self.main_window_context.as_ref().unwrap());
         self.app = Some(app);
 
-        self.main_window.as_ref().unwrap().request_redraw();
+        window.request_redraw();
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, _user_event: UserEventType) {
@@ -153,7 +149,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             }
             winit::event::WindowEvent::Resized(_new_size) => {
                 let app_context = self.main_window_context.as_mut().unwrap();
-                let window_size = physical_size_to_vec2u32(self.main_window.as_ref().unwrap().inner_size());
+                let window_size = physical_size_to_vec2u32(app_context.window.inner_size());
                 if window_size == app_context.window_size {
                     return;
                 }
@@ -177,14 +173,14 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         if app_context.is_resizing {
             app_context.is_resizing = false;
 
-            let window_size = physical_size_to_vec2u32(self.main_window.as_ref().unwrap().inner_size());
+            let window_size = physical_size_to_vec2u32(app_context.window.inner_size());
             app_context.window_size = window_size;
             app_context.surface_config.width = window_size.x;
             app_context.surface_config.height = window_size.y;
-            self.surface.as_ref().unwrap().configure(&app_context.device, &app_context.surface_config);
+            app_context.surface.configure(&app_context.device, &app_context.surface_config);
 
             self.app.as_mut().unwrap().window_event(app_context, WindowEvent::Resized(window_size));
-            self.main_window.as_ref().unwrap().request_redraw();
+            app_context.window.request_redraw();
         }
 
 
@@ -203,8 +199,8 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 impl<'window> AppState<'window> {
     fn redraw(&mut self) {
         let app_context = self.main_window_context.as_mut().unwrap();
-        let surface = self.surface.as_ref().unwrap();
-        
+        let surface = &app_context.surface;
+
         app_context
             .device
             .push_error_scope(wgpu::ErrorFilter::Validation);
@@ -227,7 +223,7 @@ impl<'window> AppState<'window> {
                     ..wgpu::TextureViewDescriptor::default()
                 });
 
-        self.app.as_mut().unwrap().render(&app_context, &surface_texture_view);
+        self.app.as_mut().unwrap().render(app_context, &surface_texture_view);
 
         surface_texture.present();
     }
@@ -239,9 +235,7 @@ pub fn run(app_ctor: fn(&AppContext) -> Box<dyn WgpuApp>) {
         .unwrap();
     let mut app_state = AppState {
         event_loop_proxy: event_loop.create_proxy(),
-        main_window: None,
         main_window_context: None,
-        surface: None,
         start_time: Instant::now(),
         app: None,
         app_ctor,
