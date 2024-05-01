@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-wgpu = "0.19"
+wgpu = "0.20"
 winit = "0.29"
-anyhow = "*"
-bytemuck = { version = "*", features = ["derive"] }
-pollster = "*"
+anyhow = "1.0"
+bytemuck = { version = "1.15", features = ["derive"] }
+pollster = "0.3"
 
 [[example]]
 name = "texture_from_cpu"
