@@ -202,6 +202,11 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             _ => {}
         }
     }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        self.app = None;
+        self.main_window_context = None;
+    }
 }
 
 impl<'window> AppState<'window> {
