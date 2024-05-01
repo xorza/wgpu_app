@@ -1,3 +1,5 @@
+use bytemuck::Zeroable;
+
 use crate::math::{Vec2i32, Vec2u32};
 
 #[derive(PartialEq, Debug, Clone)]
@@ -58,7 +60,7 @@ impl From<&winit::event::MouseButton> for MouseButtons {
 impl WindowEvent {
     pub(crate) fn convert_event(
         event: &winit::event::WindowEvent,
-        mouse_position: &mut Vec2u32,
+        mouse_position: &mut Option<Vec2u32>,
     ) -> WindowEvent {
         match event {
             winit::event::WindowEvent::Resized(size) => {
@@ -68,23 +70,26 @@ impl WindowEvent {
             winit::event::WindowEvent::CursorEntered { .. } => WindowEvent::Unknown,
             winit::event::WindowEvent::CursorLeft { .. } => WindowEvent::Unknown,
             winit::event::WindowEvent::CursorMoved {
-                position: _position,
+                position,
                 ..
             } => {
-                let prev_pos = *mouse_position;
-                let new_pos = Vec2u32::new(_position.x as u32, _position.y as u32);
-                *mouse_position = new_pos;
+                let new_pos = Vec2u32::new(position.x as u32, position.y as u32);
+                let delta = match mouse_position {
+                    Some(prev_pos) => Vec2i32::from(new_pos) - Vec2i32::from(*prev_pos),
+                    None => Vec2i32::zeroed(),
+                };
+                *mouse_position = Some(new_pos);
 
                 WindowEvent::MouseMove {
                     position: new_pos,
-                    delta: Vec2i32::from(new_pos) - Vec2i32::from(prev_pos),
+                    delta,
                 }
             }
             winit::event::WindowEvent::Occluded(_is_occluded) => WindowEvent::Unknown,
             winit::event::WindowEvent::MouseInput { state, button, .. } => WindowEvent::MouseButton(
                 MouseButtons::from(button),
                 ElementState::from(state),
-                mouse_position.clone(),
+                mouse_position.unwrap_or(Vec2u32::zeroed()),
             ),
             winit::event::WindowEvent::MouseWheel {
                 delta,
@@ -92,10 +97,9 @@ impl WindowEvent {
                 ..
             } => match delta {
                 winit::event::MouseScrollDelta::LineDelta(_l1, l2) => {
-                    WindowEvent::MouseWheel(mouse_position.clone(), *l2)
+                    WindowEvent::MouseWheel(mouse_position.unwrap_or(Vec2u32::zeroed()), *l2)
                 }
-                winit::event::MouseScrollDelta::PixelDelta(pix) => {
-                    println!("PIXEL DELTA: {:?}", pix);
+                winit::event::MouseScrollDelta::PixelDelta(_pix) => {
                     WindowEvent::Unknown
                 }
             },

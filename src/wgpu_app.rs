@@ -21,7 +21,7 @@ pub struct AppContext<'window> {
     pub queue: wgpu::Queue,
 
     pub window_size: Vec2u32,
-    pub mouse_position: Vec2u32,
+    pub mouse_position: Option<Vec2u32>,
 
     pub start_time: Instant,
 
@@ -73,12 +73,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             flags: Default::default(),
         });
 
-        // let surface = unsafe {
-        //     let target = wgpu::SurfaceTargetUnsafe::from_window(&window).unwrap();
-        //     instance.create_surface_unsafe(target).unwrap()
-        // };
         let surface = instance.create_surface(window.clone()).unwrap();
-
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -121,7 +116,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             surface_config,
             device,
             queue,
-            mouse_position: Vec2u32::new(0, 0),
+            mouse_position: None,
             window_size: Vec2u32::new(size.width, size.height),
             is_redrawing: false,
             is_resizing: false,
