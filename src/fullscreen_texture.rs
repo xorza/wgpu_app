@@ -1,6 +1,6 @@
 use std::borrow::Cow;
-use glam::UVec2;
 
+use glam::UVec2;
 use wgpu::util::DeviceExt;
 
 use crate::render_pods::ScreenRect;
@@ -17,7 +17,7 @@ pub struct FullScreenTexture {
 }
 
 struct TextureBindGroup {
-    pub texture: wgpu::Texture,
+    texture: wgpu::Texture,
     bind_group: wgpu::BindGroup,
 }
 
@@ -133,36 +133,31 @@ impl FullScreenTexture {
 
     pub fn render(
         &self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        command_encoder: &mut wgpu::CommandEncoder,
         surface_view: &wgpu::TextureView,
     ) {
-        let mut command_encoder =
-            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        {
-            let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: surface_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+        let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: surface_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
 
+        {
             render_pass.set_pipeline(&self.screen_pipeline);
             render_pass.set_vertex_buffer(0, self.screen_rect_buf.slice(..));
 
             render_pass.set_bind_group(0, &self.bind_group.bind_group, &[]);
             render_pass.draw(0..ScreenRect::vert_count(), 0..1);
         }
-
-        queue.submit(Some(command_encoder.finish()));
     }
 
     pub fn resize_window(&mut self, device: &wgpu::Device, window_size: UVec2) {
@@ -204,11 +199,11 @@ impl TextureBindGroup {
         });
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bindind_group_layout,
+            layout: bindind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
+                    resource: wgpu::BindingResource::Sampler(sampler),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
