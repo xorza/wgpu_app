@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Instant;
+use glam::UVec2;
 
 use pollster::FutureExt;
 use winit::application::ApplicationHandler;
@@ -9,7 +10,6 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::window::{Window, WindowId};
 
 use crate::events::{EventResult, WindowEvent};
-use crate::math::Vec2u32;
 
 #[derive(Debug)]
 pub struct AppContext<'window> {
@@ -20,8 +20,8 @@ pub struct AppContext<'window> {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
 
-    pub window_size: Vec2u32,
-    pub mouse_position: Option<Vec2u32>,
+    pub window_size: UVec2,
+    pub mouse_position: Option<UVec2>,
 
     pub start_time: Instant,
 
@@ -115,7 +115,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             device,
             queue,
             mouse_position: None,
-            window_size: Vec2u32::new(size.width, size.height),
+            window_size: UVec2::new(size.width, size.height),
             is_redrawing: false,
             is_resizing: false,
             start_time: self.start_time,
@@ -277,6 +277,6 @@ pub fn run(app_ctor: fn(&AppContext) -> Box<dyn WgpuApp>) {
     event_loop.run_app(&mut app_state).unwrap();
 }
 
-fn physical_size_to_vec2u32(size: winit::dpi::PhysicalSize<u32>) -> Vec2u32 {
-    Vec2u32::new(size.width, size.height)
+fn physical_size_to_vec2u32(size: winit::dpi::PhysicalSize<u32>) -> UVec2 {
+    UVec2::new(size.width, size.height)
 }

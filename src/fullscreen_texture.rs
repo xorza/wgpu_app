@@ -1,12 +1,12 @@
 use std::borrow::Cow;
+use glam::UVec2;
 
 use wgpu::util::DeviceExt;
 
-use crate::math::Vec2u32;
 use crate::render_pods::ScreenRect;
 
 pub struct FullScreenTexture {
-    window_size: Vec2u32,
+    window_size: UVec2,
 
     screen_rect_buf: wgpu::Buffer,
     screen_pipeline: wgpu::RenderPipeline,
@@ -25,7 +25,7 @@ impl FullScreenTexture {
     pub fn new(
         device: &wgpu::Device,
         surface_format: wgpu::TextureFormat,
-        window_size: Vec2u32,
+        window_size: UVec2,
     ) -> Self {
         let vertex_buffer_layout = [wgpu::VertexBufferLayout {
             array_stride: ScreenRect::vert_size() as wgpu::BufferAddress,
@@ -165,7 +165,7 @@ impl FullScreenTexture {
         queue.submit(Some(command_encoder.finish()));
     }
 
-    pub fn resize_window(&mut self, device: &wgpu::Device, window_size: Vec2u32) {
+    pub fn resize_window(&mut self, device: &wgpu::Device, window_size: UVec2) {
         self.window_size = window_size;
 
         self.bind_group =
@@ -182,7 +182,7 @@ impl TextureBindGroup {
         device: &wgpu::Device,
         bindind_group_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
-        window_size: Vec2u32,
+        window_size: UVec2,
     ) -> Self {
         let texture_extent = wgpu::Extent3d {
             width: window_size.x,
