@@ -1,11 +1,9 @@
 use wgpu_app::events::{EventResult, WindowEvent};
 use wgpu_app::fullscreen_texture::FullScreenTexture;
-use wgpu_app::math::Vec2u32;
 use wgpu_app::wgpu_app::{AppContext, WgpuApp};
 
 struct App {
     fullscreen_texture: FullScreenTexture,
-    window_size: Vec2u32,
 }
 
 impl App {
@@ -19,7 +17,6 @@ impl App {
 
         Self {
             fullscreen_texture,
-            window_size: app_context.window_size,
         }
     }
 }
@@ -28,13 +25,7 @@ impl WgpuApp for App {
     fn window_event(&mut self, app_context: &AppContext, event: WindowEvent) -> EventResult {
         match event {
             WindowEvent::Resized(new_size) => {
-                if new_size == self.window_size {
-                    return EventResult::Continue;
-                }
-
-                self.window_size = new_size;
-                self.fullscreen_texture
-                    .resize_window(&app_context.device, new_size);
+                self.fullscreen_texture.resize_window(&app_context.device, new_size);
                 Self::update_texture(app_context, &self.fullscreen_texture);
 
                 EventResult::Redraw

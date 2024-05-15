@@ -187,12 +187,16 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
                 window_context.is_resizing = false;
 
                 let window_size = physical_size_to_vec2u32(window_context.window.inner_size());
-                window_context.window_size = window_size;
-                window_context.surface_config.width = window_size.x;
-                window_context.surface_config.height = window_size.y;
-                window_context.surface.configure(&window_context.device, &window_context.surface_config);
+                if window_size != window_context.window_size {
+                    window_context.window_size = window_size;
+                    window_context.surface_config.width = window_size.x;
+                    window_context.surface_config.height = window_size.y;
+                    window_context.surface.configure(&window_context.device, &window_context.surface_config);
 
-                self.app.as_mut().unwrap().window_event(window_context, WindowEvent::Resized(window_size))
+                    self.app.as_mut().unwrap().window_event(window_context, WindowEvent::Resized(window_size))
+                } else {
+                    EventResult::Continue
+                }
             } else {
                 EventResult::Continue
             };
