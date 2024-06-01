@@ -2,6 +2,7 @@
 
 use std::time::Instant;
 
+use wgpu::DepthStencilState;
 use wgpu::util::DeviceExt;
 
 use wgpu_app::events::{EventResult, WindowEvent};
@@ -17,6 +18,9 @@ struct App {
     render_pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    depth_texture: Option<wgpu::Texture>,
+    depth_texture_view: Option<wgpu::TextureView>,
 }
 
 
@@ -41,10 +45,16 @@ impl App {
             ],
         }];
 
-        let cube_buf = app_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let vertex_buffer = app_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             contents: cube_geometry.vertex_bytes(),
             usage: wgpu::BufferUsages::VERTEX,
-            label: None,
+            label: Some("Vertex Buffer"),
+        });
+
+        let index_buffer = app_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: cube_geometry.index_bytes(),
+            usage: wgpu::BufferUsages::INDEX,
         });
 
         let bind_group_layout = app_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -98,13 +108,19 @@ impl App {
                 compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                front_face: wgpu::FrontFace::Cw,
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                cull_mode: Some(wgpu::Face::Back),
+                front_face: wgpu::FrontFace::Ccw,
+                topology: wgpu::PrimitiveTopology::TriangleList,
 
                 ..Default::default()
             },
-            depth_stencil: None,
+            depth_stencil: Some(DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
@@ -181,7 +197,10 @@ impl App {
         Self {
             render_pipeline,
             bind_group,
-            vertex_buffer: cube_buf,
+            vertex_buffer,
+            index_buffer,
+            depth_texture: None,
+            depth_texture_view: None,
         }
     }
 }
@@ -191,6 +210,8 @@ impl WgpuApp for App {
     fn window_event(&mut self, _app_context: &AppContext, event: WindowEvent) -> EventResult {
         match event {
             WindowEvent::Resized(_new_size) => {
+                self.depth_texture = None;
+                self.depth_texture_view = None;
                 EventResult::Redraw
             }
 
@@ -199,6 +220,29 @@ impl WgpuApp for App {
     }
 
     fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
+        if self.depth_texture_view.is_none() {
+            let depth_texture_extent = wgpu::Extent3d {
+                width: app_context.window_size.x,
+                height: app_context.window_size.y,
+                depth_or_array_layers: 1,
+            };
+            let depth_texture = app_context.device.create_texture(&wgpu::TextureDescriptor {
+                size: depth_texture_extent,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Depth32Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+                label: None,
+            });
+            let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+            self.depth_texture = Some(depth_texture);
+            self.depth_texture_view = Some(depth_texture_view);
+        }
+        let depth_texture_view = self.depth_texture_view.as_ref().unwrap();
+
         let time = (Instant::now() - app_context.start_time).as_secs_f32();
 
         let mut encoder =
@@ -217,7 +261,14 @@ impl WgpuApp for App {
                         },
                     }),
                 ],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_texture_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Discard,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
@@ -238,9 +289,12 @@ impl WgpuApp for App {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+
             render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, pc.as_bytes());
             render_pass.set_bind_group(0, &self.bind_group, &[]);
-            render_pass.draw(0..Cube::vertex_count(), 0..1);
+            // render_pass.draw(0..Cube::vertex_count(), 0..1);
+            render_pass.draw_indexed(0..Cube::index_count(), 0, 0..1);
         }
 
         app_context.queue.submit([encoder.finish()]);
