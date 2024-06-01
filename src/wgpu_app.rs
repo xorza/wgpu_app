@@ -34,7 +34,6 @@ pub struct UserEventType {}
 
 pub trait WgpuApp {
     fn window_event(&mut self, app_context: &AppContext, event: WindowEvent) -> EventResult;
-    // fn update(&mut self, event: Self::UserEventType) -> EventResult;
     fn render(&mut self, app_context: &AppContext, surface_texture_view: &wgpu::TextureView);
 }
 
@@ -205,7 +204,6 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             if !window_context.redraw_requested {
                 let redraw_result = self.app.as_mut().unwrap().window_event(window_context, WindowEvent::RedrawFinished);
                 Self::process_event_result(event_loop, window_context, redraw_result);
-                println!("Redraw finished");
             }
         }
 
@@ -242,8 +240,6 @@ impl<'window> AppState<'window> {
         }
         window_context.redraw_requested = false;
         window_context.is_redrawing = true;
-
-        println!("Redraw");
 
         let surface = &window_context.surface;
 

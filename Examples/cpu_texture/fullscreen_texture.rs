@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use glam::UVec2;
 use wgpu::util::DeviceExt;
 
-use crate::render_pods::ScreenRect;
+use crate::screen_rect::ScreenRect;
 
 pub struct FullScreenTexture {
     window_size: UVec2,

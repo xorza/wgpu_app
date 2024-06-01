@@ -1,5 +1,8 @@
+mod fullscreen_texture;
+mod screen_rect;
+
 use wgpu_app::events::{EventResult, WindowEvent};
-use wgpu_app::fullscreen_texture::FullScreenTexture;
+use fullscreen_texture::FullScreenTexture;
 use wgpu_app::wgpu_app::{AppContext, WgpuApp};
 
 struct App {
@@ -31,9 +34,9 @@ impl WgpuApp for App {
                 EventResult::Redraw
             }
             WindowEvent::RedrawFinished => {
-                EventResult::Redraw
+                EventResult::Continue
             }
-            
+
             _ => { EventResult::Continue }
         }
     }

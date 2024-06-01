@@ -12,5 +12,10 @@ pollster = "0.3"
 glam = "0.27"
 
 [[example]]
-name = "texture_from_cpu"
-path = "Examples/texture_from_cpu.rs"
+name = "cpu_texture"
+path = "Examples/cpu_texture/main.rs"
+
+
+[[example]]
+name = "three_d"
+path = "Examples/three_d/main.rs"
