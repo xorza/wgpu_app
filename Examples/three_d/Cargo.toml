@@ -13,4 +13,5 @@ imaginarium = { git = "https://github.com/xorza/imaginarium.git" }
 wgpu = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }
+glam = { workspace = true }
 

@@ -84,7 +84,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
         // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the surface.
         let required_limits = wgpu::Limits {
-            max_push_constant_size: 64,
+            max_push_constant_size: 256,
             ..Default::default()
         }
             .using_resolution(adapter.limits());
@@ -106,7 +106,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             .expect("Surface isn't supported by the adapter.");
         surface_config.format = surface_config.format.add_srgb_suffix();
         surface_config.view_formats.push(surface_config.format);
-        surface_config.present_mode = wgpu::PresentMode::Mailbox;
+        surface_config.present_mode = wgpu::PresentMode::Immediate;
         surface.configure(&device, &surface_config);
 
         self.main_window_context = Some(AppContext {

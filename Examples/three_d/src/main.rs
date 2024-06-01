@@ -1,14 +1,23 @@
-mod geometry;
+#![allow(dead_code)]
 
-use std::borrow::Cow;
-use wgpu::{LoadOp, Operations, StoreOp};
+use std::time::Instant;
+
 use wgpu::util::DeviceExt;
 
 use wgpu_app::events::{EventResult, WindowEvent};
 use wgpu_app::wgpu_app::{AppContext, WgpuApp};
-use crate::geometry::Cube;
 
-struct App {}
+use crate::geometry::Cube;
+use crate::push_const::MvpPushConst;
+
+mod geometry;
+mod push_const;
+
+struct App {
+    render_pipeline: wgpu::RenderPipeline,
+    bind_group: wgpu::BindGroup,
+    vertex_buffer: wgpu::Buffer,
+}
 
 
 impl App {
@@ -38,24 +47,12 @@ impl App {
             label: None,
         });
 
-
-
-        let sampler = app_context.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            border_color: None,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
-
-
         let bind_group_layout = app_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
@@ -63,7 +60,7 @@ impl App {
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
@@ -74,16 +71,18 @@ impl App {
 
         let pipeline_layout = app_context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            push_constant_ranges: &[wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::VERTEX,
+                range: 0..MvpPushConst::size_in_bytes(),
+            }],
             label: None,
         });
 
-        let screen_shader = app_context.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed("")), //include_str!("screen_shader.wgsl")
-        });
+        let screen_shader = app_context.device.create_shader_module(
+            wgpu::include_wgsl!("../assets/shader.wgsl")
+        );
 
-        let screen_pipeline = app_context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let render_pipeline = app_context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
@@ -111,25 +110,22 @@ impl App {
         });
 
 
-
         let img = imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
             .unwrap()
             .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
             .unwrap();
-
 
         let texture_extent = wgpu::Extent3d {
             width: img.desc.width(),
             height: img.desc.height(),
             depth_or_array_layers: 1,
         };
-
         let texture = app_context.device.create_texture(&wgpu::TextureDescriptor {
             size: texture_extent,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_DST,
@@ -137,6 +133,35 @@ impl App {
             label: None,
         });
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        app_context.queue.write_texture(
+            wgpu::ImageCopyTexture {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: Default::default(),
+            },
+            img.bytes.as_slice(),
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(img.desc.stride()),
+                rows_per_image: Some(img.desc.height()),
+            },
+            wgpu::Extent3d {
+                width: app_context.window_size.x,
+                height: app_context.window_size.y,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        let sampler = app_context.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            border_color: None,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
 
         let bind_group = app_context.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
@@ -153,27 +178,11 @@ impl App {
             label: None,
         });
 
-        app_context.queue.write_texture(
-            wgpu::ImageCopyTexture {
-                texture: &texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: Default::default(),
-            },
-            img.bytes.as_slice(),
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(4 * app_context.window_size.x),
-                rows_per_image: Some(app_context.window_size.y),
-            },
-            wgpu::Extent3d {
-                width: app_context.window_size.x,
-                height: app_context.window_size.y,
-                depth_or_array_layers: 1,
-            },
-        );
-
-        Self {}
+        Self {
+            render_pipeline,
+            bind_group,
+            vertex_buffer: cube_buf,
+        }
     }
 }
 
@@ -190,29 +199,52 @@ impl WgpuApp for App {
     }
 
     fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
+        let time = (Instant::now() - app_context.start_time).as_secs_f32();
+
         let mut encoder =
             app_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
-            color_attachments: &[
-                Some(wgpu::RenderPassColorAttachment {
-                    view: surface_view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 }),
-                        store: StoreOp::Store,
-                    },
-                }),
-            ],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[
+                    Some(wgpu::RenderPassColorAttachment {
+                        view: surface_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 }),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    }),
+                ],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
 
+            let mvp =
+                glam::Mat4::perspective_rh_gl(
+                    45.0_f32.to_radians(), app_context.window_size.x as f32 / app_context.window_size.y as f32, 0.1, 100.0,
+                ) *
+                    glam::Mat4::look_at_rh(
+                        glam::Vec3::new(0.0, 0.0, 5.0),
+                        glam::Vec3::new(0.0, 0.0, 0.0),
+                        glam::Vec3::new(0.0, 1.0, 0.0),
+                    ) *
+                    glam::Mat4::from_rotation_x(time) *
+                    glam::Mat4::from_rotation_y(time * 0.3);
+            let pc = MvpPushConst { mvp };
+
+
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, pc.as_bytes());
+            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            render_pass.draw(0..Cube::vertex_count(), 0..1);
+        }
 
         app_context.queue.submit([encoder.finish()]);
-        
+
         EventResult::Redraw
     }
 }
