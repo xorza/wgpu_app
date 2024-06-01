@@ -110,7 +110,7 @@ impl App {
                 compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 front_face: wgpu::FrontFace::Ccw,
                 topology: wgpu::PrimitiveTopology::TriangleList,
 
@@ -127,11 +127,10 @@ impl App {
             multiview: None,
         });
 
-        let img =
-            imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
-                .unwrap()
-                .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
-                .unwrap();
+        let img = imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
+            .unwrap()
+            .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
+            .unwrap();
 
         let texture_extent = wgpu::Extent3d {
             width: img.desc.width(),

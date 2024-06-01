@@ -31,5 +31,10 @@ var color: texture_2d<f32>;
 
 @fragment
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(color, the_sampler, vertex.tex_coord);
+    let v_color: vec4<f32> = textureSample(color, the_sampler, vertex.tex_coord);
+
+    if (v_color.a < 0.5) {
+        discard;
+    }
+    return v_color;
 }
