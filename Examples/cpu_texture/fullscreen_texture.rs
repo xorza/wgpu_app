@@ -175,7 +175,7 @@ impl FullScreenTexture {
 impl TextureBindGroup {
     pub fn new(
         device: &wgpu::Device,
-        bindind_group_layout: &wgpu::BindGroupLayout,
+        bind_group_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
         window_size: UVec2,
     ) -> Self {
@@ -199,7 +199,7 @@ impl TextureBindGroup {
         });
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: bindind_group_layout,
+            layout: bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,

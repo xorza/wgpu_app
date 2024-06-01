@@ -2,20 +2,27 @@
 name = "wgpu_app"
 version = "0.1.0"
 edition = "2021"
+resolver = "2"
 
-[dependencies]
-wgpu = "0.20"
-winit = "0.30"
+[workspace.dependencies]
 anyhow = "1.0"
+wgpu = "0.20"
 bytemuck = { version = "1.16", features = ["derive"] }
 pollster = "0.3"
 glam = "0.27"
+winit = "0.30"
+
+[dependencies]
+winit = { workspace = true }
+wgpu = { workspace = true }
+glam = { workspace = true }
+anyhow = { workspace = true }
+pollster = { workspace = true }
+bytemuck = { workspace = true }
 
 [[example]]
 name = "cpu_texture"
 path = "Examples/cpu_texture/main.rs"
 
-
-[[example]]
-name = "three_d"
-path = "Examples/three_d/main.rs"
+[workspace]
+members = ["Examples/three_d"]
