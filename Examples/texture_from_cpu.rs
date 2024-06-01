@@ -30,6 +30,10 @@ impl WgpuApp for App {
 
                 EventResult::Redraw
             }
+            WindowEvent::RedrawFinished => {
+                EventResult::Redraw
+            }
+            
             _ => { EventResult::Continue }
         }
     }

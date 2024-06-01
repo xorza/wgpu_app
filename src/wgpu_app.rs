@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Instant;
-use glam::UVec2;
 
+use glam::UVec2;
 use pollster::FutureExt;
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId};
@@ -25,6 +25,7 @@ pub struct AppContext<'window> {
 
     pub start_time: Instant,
 
+    redraw_requested: bool,
     is_redrawing: bool,
     is_resizing: bool,
 }
@@ -119,6 +120,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             is_redrawing: false,
             is_resizing: false,
             start_time: self.start_time,
+            redraw_requested: true,
         });
 
         let app = (self.app_ctor)(self.main_window_context.as_ref().unwrap());
@@ -142,7 +144,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
         match event {
             winit::event::WindowEvent::RedrawRequested => {
-                self.redraw();
+                self.main_window_context.as_mut().unwrap().redraw_requested = true;
             }
             winit::event::WindowEvent::CloseRequested => {
                 event_loop.exit();
@@ -150,11 +152,6 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             winit::event::WindowEvent::Resized(_new_size) => {
                 let app_context = self.main_window_context.as_mut().unwrap();
                 app_context.is_resizing = true;
-
-                let window_size = physical_size_to_vec2u32(app_context.window.inner_size());
-                if window_size == app_context.window_size {
-                    return;
-                }
             }
 
             _ => {
@@ -182,46 +179,37 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
         let window_context = self.main_window_context.as_mut().unwrap();
 
-        let resize_result =
-            if window_context.is_resizing {
-                window_context.is_resizing = false;
 
-                let window_size = physical_size_to_vec2u32(window_context.window.inner_size());
-                if window_size != window_context.window_size {
-                    window_context.window_size = window_size;
-                    window_context.surface_config.width = window_size.x;
-                    window_context.surface_config.height = window_size.y;
-                    window_context.surface.configure(&window_context.device, &window_context.surface_config);
+        if window_context.is_resizing {
+            window_context.is_resizing = false;
 
-                    self.app.as_mut().unwrap().window_event(window_context, WindowEvent::Resized(window_size))
-                } else {
-                    EventResult::Continue
-                }
-            } else {
-                EventResult::Continue
-            };
+            let window_size = physical_size_to_vec2u32(window_context.window.inner_size());
+            if window_size != window_context.window_size {
+                window_context.window_size = window_size;
+                window_context.surface_config.width = window_size.x;
+                window_context.surface_config.height = window_size.y;
+                window_context.surface.configure(&window_context.device, &window_context.surface_config);
 
-        let finish_redraw_result =
-            if window_context.is_redrawing {
-                window_context.is_redrawing = false;
-
-                if let Some(error) = window_context.device.pop_error_scope().block_on() {
-                    panic!("Device error: {:?}", error);
-                }
-
-                self.app.as_mut().unwrap().window_event(window_context, WindowEvent::RedrawFinished)
-            } else { EventResult::Continue };
-
-        match (resize_result, finish_redraw_result) {
-            (EventResult::Exit, _) | (_, EventResult::Exit) => {
-                event_loop.exit();
+                let resize_result = self.app.as_mut().unwrap().window_event(window_context, WindowEvent::Resized(window_size));
+                Self::process_event_result(event_loop, window_context, resize_result);
             }
-            (EventResult::Redraw, _) | (_, EventResult::Redraw) => {
-                window_context.window.request_redraw();
+        };
+
+        if window_context.is_redrawing {
+            window_context.is_redrawing = false;
+
+            if let Some(error) = window_context.device.pop_error_scope().block_on() {
+                panic!("Device error: {:?}", error);
             }
 
-            _ => {}
+            if !window_context.redraw_requested {
+                let redraw_result = self.app.as_mut().unwrap().window_event(window_context, WindowEvent::RedrawFinished);
+                Self::process_event_result(event_loop, window_context, redraw_result);
+                println!("Redraw finished");
+            }
         }
+
+        self.redraw();
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
@@ -230,21 +218,44 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
     }
 }
 
-impl<'window> AppState<'window> {
-    fn redraw(&mut self) {
-        let app_context = self.main_window_context.as_mut().unwrap();
-        let surface = &app_context.surface;
 
-        app_context
+impl<'window> AppState<'window> {
+    fn process_event_result(event_loop: &ActiveEventLoop, window_context: &mut AppContext, resize_result: EventResult) {
+        match resize_result {
+            EventResult::Exit => {
+                window_context.redraw_requested = false;
+                event_loop.exit();
+            }
+            EventResult::Redraw => {
+                window_context.redraw_requested = true;
+            }
+
+            _ => {}
+        }
+    }
+
+    fn redraw(&mut self) {
+        let window_context = self.main_window_context.as_mut().unwrap();
+
+        if !window_context.redraw_requested {
+            return;
+        }
+        window_context.redraw_requested = false;
+        window_context.is_redrawing = true;
+
+        println!("Redraw");
+
+        let surface = &window_context.surface;
+
+        window_context
             .device
             .push_error_scope(wgpu::ErrorFilter::Validation);
-        app_context.is_redrawing = true;
 
         let surface_texture = surface
             .get_current_texture()
             .unwrap_or_else(|_| {
                 surface
-                    .configure(&app_context.device, &app_context.surface_config);
+                    .configure(&window_context.device, &window_context.surface_config);
                 surface
                     .get_current_texture()
                     .expect("Failed to acquire next surface texture.")
@@ -253,11 +264,11 @@ impl<'window> AppState<'window> {
             surface_texture
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor {
-                    format: Some(app_context.surface_config.format),
+                    format: Some(window_context.surface_config.format),
                     ..wgpu::TextureViewDescriptor::default()
                 });
 
-        self.app.as_mut().unwrap().render(app_context, &surface_texture_view);
+        self.app.as_mut().unwrap().render(window_context, &surface_texture_view);
 
         surface_texture.present();
     }
