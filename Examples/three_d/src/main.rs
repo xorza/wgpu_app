@@ -125,11 +125,24 @@ impl App {
             multiview: None,
         });
 
-
-        let img = imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
-            .unwrap()
-            .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
-            .unwrap();
+        let img = {
+            imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
+                .unwrap()
+                .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
+                .unwrap()
+            // let img_dsc = imaginarium::image::ImageDesc::new(
+            //     2, 2,
+            //     imaginarium::color_format::ColorFormat::RGBA_U8,
+            // );
+            //
+            // let data = vec! {
+            //     255, 255, 0, 255,
+            //     255, 255, 0, 255,
+            //     255, 0, 0, 255,
+            //     255, 255, 255, 255,
+            // };
+            // imaginarium::image::Image::new_with_data(img_dsc, data).unwrap()
+        };
 
         let texture_extent = wgpu::Extent3d {
             width: img.desc.width(),
@@ -141,7 +154,7 @@ impl App {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_DST,
@@ -164,8 +177,8 @@ impl App {
                 rows_per_image: Some(img.desc.height()),
             },
             wgpu::Extent3d {
-                width: app_context.window_size.x,
-                height: app_context.window_size.y,
+                width: img.desc.width(),
+                height: img.desc.height(),
                 depth_or_array_layers: 1,
             },
         );
@@ -174,8 +187,8 @@ impl App {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             border_color: None,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
 
