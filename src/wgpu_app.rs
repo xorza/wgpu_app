@@ -34,7 +34,7 @@ pub struct UserEventType {}
 
 pub trait WgpuApp {
     fn window_event(&mut self, app_context: &AppContext, event: WindowEvent) -> EventResult;
-    fn render(&mut self, app_context: &AppContext, surface_texture_view: &wgpu::TextureView);
+    fn render(&mut self, app_context: &AppContext, surface_texture_view: &wgpu::TextureView) -> EventResult;
 }
 
 struct AppState<'window> {
@@ -106,6 +106,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             .expect("Surface isn't supported by the adapter.");
         surface_config.format = surface_config.format.add_srgb_suffix();
         surface_config.view_formats.push(surface_config.format);
+        surface_config.present_mode = wgpu::PresentMode::Mailbox;
         surface.configure(&device, &surface_config);
 
         self.main_window_context = Some(AppContext {
@@ -194,20 +195,8 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             }
         };
 
-        if window_context.is_redrawing {
-            window_context.is_redrawing = false;
 
-            if let Some(error) = window_context.device.pop_error_scope().block_on() {
-                panic!("Device error: {:?}", error);
-            }
-
-            if !window_context.redraw_requested {
-                let redraw_result = self.app.as_mut().unwrap().window_event(window_context, WindowEvent::RedrawFinished);
-                Self::process_event_result(event_loop, window_context, redraw_result);
-            }
-        }
-
-        self.redraw();
+        self.redraw(event_loop);
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
@@ -225,15 +214,23 @@ impl<'window> AppState<'window> {
                 event_loop.exit();
             }
             EventResult::Redraw => {
-                window_context.redraw_requested = true;
+                window_context.window.request_redraw();
             }
 
             _ => {}
         }
     }
 
-    fn redraw(&mut self) {
+    fn redraw(&mut self, event_loop: &ActiveEventLoop, ) {
         let window_context = self.main_window_context.as_mut().unwrap();
+
+        if window_context.is_redrawing {
+            window_context.is_redrawing = false;
+
+            if let Some(error) = window_context.device.pop_error_scope().block_on() {
+                panic!("Device error: {:?}", error);
+            }
+        }
 
         if !window_context.redraw_requested {
             return;
@@ -264,9 +261,11 @@ impl<'window> AppState<'window> {
                     ..wgpu::TextureViewDescriptor::default()
                 });
 
-        self.app.as_mut().unwrap().render(window_context, &surface_texture_view);
+        let event_result = self.app.as_mut().unwrap().render(window_context, &surface_texture_view);
 
         surface_texture.present();
+
+        Self::process_event_result(&event_loop, window_context, event_result);
     }
 }
 

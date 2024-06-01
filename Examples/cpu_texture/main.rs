@@ -33,21 +33,20 @@ impl WgpuApp for App {
 
                 EventResult::Redraw
             }
-            WindowEvent::RedrawFinished => {
-                EventResult::Continue
-            }
 
             _ => { EventResult::Continue }
         }
     }
 
-    fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) {
+    fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
         let mut command_encoder =
             app_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         self.fullscreen_texture.render(&mut command_encoder, surface_view);
 
         app_context.queue.submit([command_encoder.finish()]);
+
+        EventResult::Continue
     }
 }
 

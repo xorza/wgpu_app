@@ -20,7 +20,6 @@ pub enum ElementState {
 pub enum WindowEvent {
     Resized(UVec2),
     WindowClose,
-    RedrawFinished,
     MouseWheel(UVec2, f32),
     MouseMove { position: UVec2, delta: IVec2 },
     MouseButton(MouseButtons, ElementState, UVec2),

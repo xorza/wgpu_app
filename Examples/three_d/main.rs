@@ -19,15 +19,12 @@ impl WgpuApp for App {
             WindowEvent::Resized(_new_size) => {
                 EventResult::Redraw
             }
-            WindowEvent::RedrawFinished => {
-                EventResult::Redraw
-            }
 
             _ => { EventResult::Continue }
         }
     }
 
-    fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) {
+    fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
         let mut encoder =
             app_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
@@ -50,6 +47,8 @@ impl WgpuApp for App {
 
 
         app_context.queue.submit([encoder.finish()]);
+        
+        EventResult::Redraw
     }
 }
 
