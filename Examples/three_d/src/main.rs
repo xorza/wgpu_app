@@ -13,8 +13,11 @@ use crate::push_const::MvpPushConst;
 
 mod geometry;
 mod push_const;
+mod fps;
 
 struct App {
+    fps_counter: fps::FpsCounter,
+
     render_pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     vertex_buffer: wgpu::Buffer,
@@ -22,7 +25,6 @@ struct App {
     depth_texture: Option<wgpu::Texture>,
     depth_texture_view: Option<wgpu::TextureView>,
 }
-
 
 impl App {
     fn new(app_context: &AppContext) -> Self {
@@ -125,24 +127,11 @@ impl App {
             multiview: None,
         });
 
-        let img = {
+        let img =
             imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
                 .unwrap()
                 .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
-                .unwrap()
-            // let img_dsc = imaginarium::image::ImageDesc::new(
-            //     2, 2,
-            //     imaginarium::color_format::ColorFormat::RGBA_U8,
-            // );
-            //
-            // let data = vec! {
-            //     255, 255, 0, 255,
-            //     255, 255, 0, 255,
-            //     255, 0, 0, 255,
-            //     255, 255, 255, 255,
-            // };
-            // imaginarium::image::Image::new_with_data(img_dsc, data).unwrap()
-        };
+                .unwrap();
 
         let texture_extent = wgpu::Extent3d {
             width: img.desc.width(),
@@ -208,6 +197,7 @@ impl App {
         });
 
         Self {
+            fps_counter: fps::FpsCounter::new(),
             render_pipeline,
             bind_group,
             vertex_buffer,
@@ -217,7 +207,6 @@ impl App {
         }
     }
 }
-
 
 impl WgpuApp for App {
     fn window_event(&mut self, _app_context: &AppContext, event: WindowEvent) -> EventResult {
@@ -312,10 +301,13 @@ impl WgpuApp for App {
 
         app_context.queue.submit([encoder.finish()]);
 
+        if self.fps_counter.update() {
+            println!("FPS: {}", self.fps_counter.get_fps());
+        }
+
         EventResult::Redraw
     }
 }
-
 
 fn main() {
     wgpu_app::wgpu_app::run(

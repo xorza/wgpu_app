@@ -48,7 +48,6 @@ struct AppState<'window> {
     app_ctor: fn(&AppContext) -> Box<dyn WgpuApp>,
 }
 
-
 impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.main_window_context.is_some() {
@@ -204,7 +203,6 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         self.main_window_context = None;
     }
 }
-
 
 impl<'window> AppState<'window> {
     fn process_event_result(event_loop: &ActiveEventLoop, window_context: &mut AppContext, resize_result: EventResult) {
