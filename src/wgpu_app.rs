@@ -7,6 +7,7 @@ use pollster::FutureExt;
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
+use winit::monitor::VideoModeHandle;
 use winit::window::{Window, WindowId};
 
 use crate::events::{EventResult, WindowEvent};
@@ -54,8 +55,21 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             panic!("Resumed called twice");
         }
 
+        let primary_monitor = event_loop.primary_monitor().unwrap();
+        let _video_mode = primary_monitor
+            .video_modes()
+            .max_by(|a: &VideoModeHandle, b: &VideoModeHandle| {
+                let a_res = a.size().width * a.size().height;
+                let b_res = b.size().width * b.size().height;
+                a_res.cmp(&b_res)
+            })
+            .unwrap();
+
         let window_attr = Window::default_attributes()
-            .with_title("title");
+            .with_fullscreen(Some(
+                winit::window::Fullscreen::Borderless(None)
+            ))
+            .with_title("gpu-app");
         let window = Arc::new(event_loop.create_window(window_attr).unwrap());
 
         let size = window.inner_size();
@@ -219,7 +233,7 @@ impl<'window> AppState<'window> {
         }
     }
 
-    fn redraw(&mut self, event_loop: &ActiveEventLoop, ) {
+    fn redraw(&mut self, event_loop: &ActiveEventLoop) {
         let window_context = self.main_window_context.as_mut().unwrap();
 
         if window_context.is_redrawing {
