@@ -5,8 +5,7 @@ use std::time::Instant;
 use wgpu::DepthStencilState;
 use wgpu::util::DeviceExt;
 
-use wgpu_app::events::{EventResult, WindowEvent};
-use wgpu_app::wgpu_app::{AppContext, WgpuApp};
+use wgpu_app::*;
 
 use crate::geometry::Cube;
 use crate::push_const::MvpPushConst;
@@ -309,7 +308,7 @@ impl WgpuApp for App {
 }
 
 fn main() {
-    wgpu_app::wgpu_app::run(
+    wgpu_app::run(
         |app_context: &AppContext| Box::new(App::new(app_context))
     );
 }

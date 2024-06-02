@@ -1,9 +1,8 @@
+use fullscreen_texture::FullScreenTexture;
+use wgpu_app::*;
+
 mod fullscreen_texture;
 mod screen_rect;
-
-use wgpu_app::events::{EventResult, WindowEvent};
-use fullscreen_texture::FullScreenTexture;
-use wgpu_app::wgpu_app::{AppContext, WgpuApp};
 
 struct App {
     fullscreen_texture: FullScreenTexture,
@@ -86,7 +85,7 @@ impl App {
 }
 
 fn main() {
-    wgpu_app::wgpu_app::run(
+    wgpu_app::run(
         |app_context: &AppContext| Box::new(App::new(app_context))
     );
 }

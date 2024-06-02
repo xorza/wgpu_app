@@ -1,4 +1,9 @@
 #![allow(dead_code)]
 
-pub mod events;
-pub mod wgpu_app;
+pub use events::{EventResult, WindowEvent};
+pub use wgpu_app::{AppContext, UserEventType, WgpuApp};
+pub use wgpu_app::run;
+
+mod events;
+mod wgpu_app;
+
