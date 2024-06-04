@@ -15,7 +15,7 @@ struct Symbol {
     opacity: f32,
 }
 
-pub(crate) struct Stream {
+pub(crate) struct Thread {
     decay: f32,
     pos: glam::Vec2,
     vel: f32,
@@ -27,7 +27,7 @@ pub(crate) struct Stream {
 }
 
 pub(crate) struct Matrix {
-    streams: Vec<Stream>,
+    streams: Vec<Thread>,
     prev_time: f32,
 }
 
@@ -54,7 +54,7 @@ impl Symbol {
     }
 }
 
-impl Default for Stream {
+impl Default for Thread {
     fn default() -> Self {
         let symbols = Vec::with_capacity(MAX_LENGTH as usize);
 
@@ -71,7 +71,7 @@ impl Default for Stream {
     }
 }
 
-impl Stream {
+impl Thread {
     fn init(&mut self) {
         self.decay = 0.3;
         self.pos = glam::Vec2::new(0.0, 0.0);
@@ -106,7 +106,7 @@ impl Stream {
 impl Matrix {
     pub fn new() -> Self {
         let mut streams = vec! {
-            Stream::default()
+            Thread::default()
         };
         streams.iter_mut().for_each(|stream| stream.init());
 
