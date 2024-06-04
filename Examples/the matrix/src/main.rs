@@ -107,7 +107,22 @@ impl App {
             fragment: Some(wgpu::FragmentState {
                 module: &screen_shader,
                 entry_point: "fs_main",
-                targets: &[Some(app_context.surface_config.format.into())],
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: app_context.surface_config.format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            operation: wgpu::BlendOperation::Add,
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                        },
+                        alpha: wgpu::BlendComponent {
+                            operation: wgpu::BlendOperation::Add,
+                            src_factor: wgpu::BlendFactor::One,
+                            dst_factor: wgpu::BlendFactor::One,
+                        },
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
                 compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
@@ -213,7 +228,8 @@ impl WgpuApp for App {
     }
 
     fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
-        let _time = (Instant::now() - app_context.start_time).as_secs_f32();
+        let time = (Instant::now() - app_context.start_time).as_secs_f32();
+        self.matrix.update(time);
 
         let mvp = if app_context.surface_config.width > app_context.surface_config.height {
             let aspect = (app_context.surface_config.height as f32 / app_context.surface_config.width as f32 - 1.0) / 2.0;
@@ -231,6 +247,7 @@ impl WgpuApp for App {
 
         let vb = &mut Vec::new();
         let ib = &mut Vec::new();
+
         self.matrix.geometry(vb, ib);
         app_context.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vb));
         app_context.queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(ib));
@@ -246,7 +263,7 @@ impl WgpuApp for App {
                         view: surface_view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 }),
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                             store: wgpu::StoreOp::Store,
                         },
                     }),
@@ -262,7 +279,6 @@ impl WgpuApp for App {
 
             render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, pc.as_bytes());
             render_pass.set_bind_group(0, &self.bind_group, &[]);
-            // render_pass.draw(0..vb.len() as u32, 0..1);
             render_pass.draw_indexed(0..ib.len() as u32, 0, 0..1);
         }
 
