@@ -2,8 +2,6 @@
 
 use std::time::Instant;
 
-use wgpu::util::DeviceExt;
-
 use wgpu_app::*;
 
 use crate::matrix::Vertex;
@@ -113,7 +111,7 @@ impl App {
                 compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 front_face: wgpu::FrontFace::Ccw,
                 topology: wgpu::PrimitiveTopology::TriangleList,
 
@@ -217,6 +215,20 @@ impl WgpuApp for App {
     fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
         let _time = (Instant::now() - app_context.start_time).as_secs_f32();
 
+        let mvp = if app_context.surface_config.width > app_context.surface_config.height {
+            let aspect = (app_context.surface_config.height as f32 / app_context.surface_config.width as f32 - 1.0) / 2.0;
+            glam::Mat4::orthographic_rh(
+                0.0, 1.0, 0.0 - aspect, 1.0 + aspect, 0.0, 1.0,
+            )
+        } else {
+            let aspect = (app_context.surface_config.width as f32 / app_context.surface_config.height as f32 - 1.0) / 2.0;
+            glam::Mat4::orthographic_rh(
+                0.0 - aspect, 1.0 + aspect, 0.0, 1.0, 0.0, 1.0,
+            )
+        };
+        let pc = MvpPushConst { mvp };
+
+
         let vb = &mut Vec::new();
         let ib = &mut Vec::new();
         self.matrix.geometry(vb, ib);
@@ -243,10 +255,6 @@ impl WgpuApp for App {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-
-            let mvp = glam::Mat4::IDENTITY;
-            let pc = MvpPushConst { mvp };
-
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));

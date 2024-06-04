@@ -56,7 +56,7 @@ impl Symbol {
 
 impl Default for Stream {
     fn default() -> Self {
-        let mut symbols = Vec::with_capacity(MAX_LENGTH as usize);
+        let symbols = Vec::with_capacity(MAX_LENGTH as usize);
 
         Self {
             decay: 0.0,
@@ -114,26 +114,27 @@ impl Matrix {
         ib.clear();
 
         for stream in self.streams.iter() {
-            let scale = 0.05;
+            let scale = 0.9;
+            let offset = glam::vec2(0.5, 0.5);
             for _symbol in stream.symbols[0..stream.top_symbol + 1].iter() {
                 vb.push(Vertex {
-                    pos: scale * glam::Vec2::new(-1.0, -1.0),
-                    uv: glam::Vec2::new(0.0, 0.0),
-                    color: glam::Vec2::new(1.0, 1.0),
-                });
-                vb.push(Vertex {
-                    pos: scale * glam::Vec2::new(-1.0, 1.0),
+                    pos: offset + scale * glam::Vec2::new(-0.5, -0.5),
                     uv: glam::Vec2::new(0.0, 1.0),
                     color: glam::Vec2::new(1.0, 1.0),
                 });
                 vb.push(Vertex {
-                    pos: scale * glam::Vec2::new(1.0, -1.0),
-                    uv: glam::Vec2::new(1.0, 0.0),
+                    pos: offset + scale * glam::Vec2::new(-0.5, 0.5),
+                    uv: glam::Vec2::new(0.0, 0.0),
                     color: glam::Vec2::new(1.0, 1.0),
                 });
                 vb.push(Vertex {
-                    pos: scale * glam::Vec2::new(1.0, 1.0),
+                    pos: offset + scale * glam::Vec2::new(0.5, -0.5),
                     uv: glam::Vec2::new(1.0, 1.0),
+                    color: glam::Vec2::new(1.0, 1.0),
+                });
+                vb.push(Vertex {
+                    pos: offset + scale * glam::Vec2::new(0.5, 0.5),
+                    uv: glam::Vec2::new(1.0, 0.0),
                     color: glam::Vec2::new(1.0, 1.0),
                 });
 
