@@ -66,9 +66,9 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             .unwrap();
 
         let window_attr = Window::default_attributes()
-            .with_fullscreen(Some(
-                winit::window::Fullscreen::Borderless(None)
-            ))
+            // .with_fullscreen(Some(
+            //     winit::window::Fullscreen::Borderless(None)
+            // ))
             .with_title("gpu-app");
         let window = Arc::new(event_loop.create_window(window_attr).unwrap());
 

@@ -1,0 +1,18 @@
+[package]
+name = "the_matrix"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "three_d"
+path = "src/main.rs"
+
+[dependencies]
+wgpu_app = { path = "../.." }
+imaginarium = { git = "https://github.com/xorza/imaginarium.git" }
+wgpu = { workspace = true }
+anyhow = { workspace = true }
+bytemuck = { workspace = true }
+glam = { workspace = true }
+rand = { workspace = true }
+
