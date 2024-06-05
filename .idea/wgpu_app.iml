@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/Examples/texture_from_cpu/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Examples/three_d/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Examples/the matrix/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/Examples/texture_from_cpu/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

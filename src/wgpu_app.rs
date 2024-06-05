@@ -104,7 +104,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             max_push_constant_size: 256,
             ..Default::default()
         }
-            .using_resolution(adapter.limits());
+        .using_resolution(adapter.limits());
 
         let (device, queue) = adapter
             .request_device(
@@ -123,7 +123,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             .expect("Surface isn't supported by the adapter.");
         surface_config.format = surface_config.format.add_srgb_suffix();
         surface_config.view_formats.push(surface_config.format);
-        surface_config.present_mode = wgpu::PresentMode::Immediate;
+        surface_config.present_mode = wgpu::PresentMode::AutoNoVsync;
         surface.configure(&device, &surface_config);
 
         self.main_window_context = Some(AppContext {

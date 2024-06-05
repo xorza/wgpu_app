@@ -35,8 +35,8 @@ pub(crate) struct Matrix {
     prev_time: f32,
 }
 
-const MAX_LENGTH: u8 = 100;
-const THREAD_COUNT: usize = 250;
+const MAX_LENGTH: u8 = 60;
+const THREAD_COUNT: usize = 300;
 const CHAR_ALTLAS_SIZE: u8 = 16;
 const CHAR_ALTLAS_SIZE_F32: f32 = CHAR_ALTLAS_SIZE as f32;
 
@@ -47,7 +47,7 @@ impl Default for Symbol {
             changing: false,
             opacity: 1.0,
             change_time: 0.0,
-            change_delta: 0.0,
+            change_delta: 1.0,
         }
     }
 }
@@ -56,10 +56,10 @@ impl Symbol {
     fn new_rand() -> Self {
         Self {
             char: random::<u8>(),
-            changing: random::<u8>() < 5,
+            changing: random::<u8>() < 40,
             opacity: 1.0,
             change_time: 0.0,
-            change_delta: 1.0, // random::<f32>() * 0.5 + 0.5,
+            change_delta: random::<f32>() * 0.5 + 0.5,
         }
     }
 }
@@ -86,7 +86,7 @@ impl Thread {
     fn init(&mut self) {
         self.decay = random::<f32>() * 0.3 + 0.01;
         self.pos = glam::Vec2::new(random::<f32>(), random::<f32>() * 1.8 - 0.5);
-        self.new_symbol_delta = random::<f32>() + 0.3;
+        self.new_symbol_delta = random::<f32>() * 0.3 + 0.03;
         self.size = random::<f32>() * 0.03 + 0.002;
         self.top_symbol = 0;
         self.length = (random::<u8>() % MAX_LENGTH) as usize;
@@ -96,9 +96,7 @@ impl Thread {
 
     fn update(&mut self, time: f32, delta: f32) {
         for symbol in self.symbols[0..self.top_symbol + 1].iter_mut() {
-            if time - symbol.change_time >= symbol.change_delta
-            // && symbol.changing
-            {
+            if time - symbol.change_time >= symbol.change_delta && symbol.changing {
                 symbol.char = random::<u8>();
                 symbol.change_time = time;
             }
@@ -122,6 +120,11 @@ impl Matrix {
             let mut thread = Thread::default();
             thread.init();
             threads.push(thread);
+        }
+        for thread in threads.iter_mut() {
+            for i in -99..0 {
+                thread.update((i as f32) * 0.016, 0.016);
+            }
         }
 
         Self {
@@ -152,13 +155,12 @@ impl Matrix {
         ib.clear();
 
         for thread in self.threads.iter() {
-            let scale = thread.size;
             let iter = thread.symbols[0..thread.top_symbol + 1]
                 .iter()
                 .enumerate()
                 .filter_map(|(idx, symbol)| {
-                    let pos = thread.pos - glam::Vec2::new(0.0, thread.size * idx as f32)
-                        + scale * glam::Vec2::new(-0.5, -0.5);
+                    let pos = thread.pos - glam::Vec2::new(0.0, 0.8 * thread.size * idx as f32)
+                        + thread.size * glam::Vec2::new(-0.5, -0.5);
 
                     if symbol.opacity > 0.0 && pos.y >= 0.0 && pos.y <= 1.0 {
                         Some((symbol, pos))
@@ -174,28 +176,28 @@ impl Matrix {
                 );
 
                 vb.push(Vertex {
-                    pos: pos + scale * glam::Vec2::new(-0.5, -0.5),
+                    pos: pos + thread.size * glam::Vec2::new(-0.5, -0.5),
                     uv: uv_offset
                         + glam::Vec2::new(0.0, 1.0)
                             * glam::vec2(1.0 / CHAR_ALTLAS_SIZE_F32, 1.0 / CHAR_ALTLAS_SIZE_F32),
                     color: glam::Vec2::new(1.0, symbol.opacity),
                 });
                 vb.push(Vertex {
-                    pos: pos + scale * glam::Vec2::new(-0.5, 0.5),
+                    pos: pos + thread.size * glam::Vec2::new(-0.5, 0.5),
                     uv: uv_offset
                         + glam::Vec2::new(0.0, 0.0)
                             * glam::vec2(1.0 / CHAR_ALTLAS_SIZE_F32, 1.0 / CHAR_ALTLAS_SIZE_F32),
                     color: glam::Vec2::new(1.0, symbol.opacity),
                 });
                 vb.push(Vertex {
-                    pos: pos + scale * glam::Vec2::new(0.5, -0.5),
+                    pos: pos + thread.size * glam::Vec2::new(0.5, -0.5),
                     uv: uv_offset
                         + glam::Vec2::new(1.0, 1.0)
                             * glam::vec2(1.0 / CHAR_ALTLAS_SIZE_F32, 1.0 / CHAR_ALTLAS_SIZE_F32),
                     color: glam::Vec2::new(1.0, symbol.opacity),
                 });
                 vb.push(Vertex {
-                    pos: pos + scale * glam::Vec2::new(0.5, 0.5),
+                    pos: pos + thread.size * glam::Vec2::new(0.5, 0.5),
                     uv: uv_offset
                         + glam::Vec2::new(1.0, 0.0)
                             * glam::vec2(1.0 / CHAR_ALTLAS_SIZE_F32, 1.0 / CHAR_ALTLAS_SIZE_F32),
