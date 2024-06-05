@@ -66,13 +66,12 @@ impl WindowEvent {
             winit::event::WindowEvent::Focused(_is_focused) => WindowEvent::Unknown,
             winit::event::WindowEvent::CursorEntered { .. } => WindowEvent::Unknown,
             winit::event::WindowEvent::CursorLeft { .. } => WindowEvent::Unknown,
-            winit::event::WindowEvent::CursorMoved {
-                position,
-                ..
-            } => {
+            winit::event::WindowEvent::CursorMoved { position, .. } => {
                 let new_pos = UVec2::new(position.x as u32, position.y as u32);
                 let delta = match mouse_position {
-                    Some(prev_pos) => IVec2::try_from(new_pos).unwrap() - IVec2::try_from(*prev_pos).unwrap(),
+                    Some(prev_pos) => {
+                        IVec2::try_from(new_pos).unwrap() - IVec2::try_from(*prev_pos).unwrap()
+                    }
                     None => IVec2::ZERO,
                 };
                 *mouse_position = Some(new_pos);
@@ -83,11 +82,13 @@ impl WindowEvent {
                 }
             }
             winit::event::WindowEvent::Occluded(_is_occluded) => WindowEvent::Unknown,
-            winit::event::WindowEvent::MouseInput { state, button, .. } => WindowEvent::MouseButton(
-                MouseButtons::from(button),
-                ElementState::from(state),
-                mouse_position.unwrap_or(UVec2::ZERO),
-            ),
+            winit::event::WindowEvent::MouseInput { state, button, .. } => {
+                WindowEvent::MouseButton(
+                    MouseButtons::from(button),
+                    ElementState::from(state),
+                    mouse_position.unwrap_or(UVec2::ZERO),
+                )
+            }
             winit::event::WindowEvent::MouseWheel {
                 delta,
                 phase: _phase,
@@ -96,9 +97,7 @@ impl WindowEvent {
                 winit::event::MouseScrollDelta::LineDelta(_l1, l2) => {
                     WindowEvent::MouseWheel(mouse_position.unwrap_or(UVec2::ZERO), *l2)
                 }
-                winit::event::MouseScrollDelta::PixelDelta(_pix) => {
-                    WindowEvent::Unknown
-                }
+                winit::event::MouseScrollDelta::PixelDelta(_pix) => WindowEvent::Unknown,
             },
             winit::event::WindowEvent::CloseRequested => WindowEvent::WindowClose,
             winit::event::WindowEvent::Moved(_position) => WindowEvent::Unknown,
@@ -106,4 +105,3 @@ impl WindowEvent {
         }
     }
 }
-

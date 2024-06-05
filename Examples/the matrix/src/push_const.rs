@@ -12,4 +12,3 @@ impl MvpPushConst {
         bytemuck::bytes_of(self)
     }
 }
-

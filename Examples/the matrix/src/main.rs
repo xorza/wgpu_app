@@ -7,9 +7,9 @@ use wgpu_app::*;
 use crate::matrix::Vertex;
 use crate::push_const::MvpPushConst;
 
-mod push_const;
 mod fps;
 mod matrix;
+mod push_const;
 
 struct App {
     fps_counter: fps::FpsCounter,
@@ -48,99 +48,109 @@ impl App {
 
         let vertex_buffer = app_context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: 1024 * 10,
+            size: 1024 * 1024 * 5,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let index_buffer = app_context.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Index Buffer"),
-            size: 1024 * 10,
+            size: 1024 * 1024 * 5,
             usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let bind_group_layout = app_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
+        let bind_group_layout =
+            app_context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                            },
+                            count: None,
+                        },
+                    ],
+                    label: None,
+                });
+
+        let pipeline_layout =
+            app_context
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    bind_group_layouts: &[&bind_group_layout],
+                    push_constant_ranges: &[wgpu::PushConstantRange {
+                        stages: wgpu::ShaderStages::VERTEX,
+                        range: 0..MvpPushConst::size_in_bytes(),
+                    }],
+                    label: None,
+                });
+
+        let screen_shader = app_context
+            .device
+            .create_shader_module(wgpu::include_wgsl!("../assets/shader.wgsl"));
+
+        let render_pipeline =
+            app_context
+                .device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: None,
+                    layout: Some(&pipeline_layout),
+                    vertex: wgpu::VertexState {
+                        module: &screen_shader,
+                        entry_point: "vs_main",
+                        buffers: &vertex_buffer_layout,
+                        compilation_options: Default::default(),
                     },
-                    count: None,
-                },
-            ],
-            label: None,
-        });
-
-        let pipeline_layout = app_context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::VERTEX,
-                range: 0..MvpPushConst::size_in_bytes(),
-            }],
-            label: None,
-        });
-
-        let screen_shader = app_context.device.create_shader_module(
-            wgpu::include_wgsl!("../assets/shader.wgsl")
-        );
-
-        let render_pipeline = app_context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &screen_shader,
-                entry_point: "vs_main",
-                buffers: &vertex_buffer_layout,
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &screen_shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: app_context.surface_config.format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent {
-                            operation: wgpu::BlendOperation::Add,
-                            src_factor: wgpu::BlendFactor::SrcAlpha,
-                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        },
-                        alpha: wgpu::BlendComponent {
-                            operation: wgpu::BlendOperation::Add,
-                            src_factor: wgpu::BlendFactor::One,
-                            dst_factor: wgpu::BlendFactor::One,
-                        },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &screen_shader,
+                        entry_point: "fs_main",
+                        targets: &[Some(wgpu::ColorTargetState {
+                            format: app_context.surface_config.format,
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent {
+                                    operation: wgpu::BlendOperation::Add,
+                                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                                },
+                                alpha: wgpu::BlendComponent {
+                                    operation: wgpu::BlendOperation::Add,
+                                    src_factor: wgpu::BlendFactor::One,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                },
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        })],
+                        compilation_options: Default::default(),
                     }),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                front_face: wgpu::FrontFace::Ccw,
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                    primitive: wgpu::PrimitiveState {
+                        cull_mode: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        topology: wgpu::PrimitiveTopology::TriangleList,
 
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
+                        ..Default::default()
+                    },
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview: None,
+                });
 
-        let img = imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
-            .unwrap()
-            .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
-            .unwrap();
+        let img =
+            imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
+                .unwrap()
+                .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
+                .unwrap();
 
         let texture_extent = wgpu::Extent3d {
             width: img.desc.width(),
@@ -190,20 +200,22 @@ impl App {
             ..Default::default()
         });
 
-        let bind_group = app_context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
-                },
-            ],
-            label: None,
-        });
+        let bind_group = app_context
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::TextureView(&texture_view),
+                    },
+                ],
+                label: None,
+            });
 
         Self {
             fps_counter: fps::FpsCounter::new(),
@@ -219,55 +231,61 @@ impl App {
 impl WgpuApp for App {
     fn window_event(&mut self, _app_context: &AppContext, event: WindowEvent) -> EventResult {
         match event {
-            WindowEvent::Resized(_new_size) => {
-                EventResult::Redraw
-            }
+            WindowEvent::Resized(_new_size) => EventResult::Redraw,
 
-            _ => { EventResult::Continue }
+            _ => EventResult::Continue,
         }
     }
 
-    fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
+    fn render(
+        &mut self,
+        app_context: &AppContext,
+        surface_view: &wgpu::TextureView,
+    ) -> EventResult {
         let time = (Instant::now() - app_context.start_time).as_secs_f32();
         self.matrix.update(time);
 
         let mvp = if app_context.surface_config.width > app_context.surface_config.height {
-            let aspect = (app_context.surface_config.height as f32 / app_context.surface_config.width as f32 - 1.0) / 2.0;
-            glam::Mat4::orthographic_rh(
-                0.0, 1.0, 0.0 - aspect, 1.0 + aspect, 0.0, 1.0,
-            )
+            let aspect = (app_context.surface_config.height as f32
+                / app_context.surface_config.width as f32
+                - 1.0)
+                / 2.0;
+            glam::Mat4::orthographic_rh(0.0, 1.0, 0.0 - aspect, 1.0 + aspect, 0.0, 1.0)
         } else {
-            let aspect = (app_context.surface_config.width as f32 / app_context.surface_config.height as f32 - 1.0) / 2.0;
-            glam::Mat4::orthographic_rh(
-                0.0 - aspect, 1.0 + aspect, 0.0, 1.0, 0.0, 1.0,
-            )
+            let aspect = (app_context.surface_config.width as f32
+                / app_context.surface_config.height as f32
+                - 1.0)
+                / 2.0;
+            glam::Mat4::orthographic_rh(0.0 - aspect, 1.0 + aspect, 0.0, 1.0, 0.0, 1.0)
         };
         let pc = MvpPushConst { mvp };
-
 
         let vb = &mut Vec::new();
         let ib = &mut Vec::new();
 
         self.matrix.geometry(vb, ib);
-        app_context.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vb));
-        app_context.queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(ib));
+        app_context
+            .queue
+            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vb));
+        app_context
+            .queue
+            .write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(ib));
 
-        let mut encoder =
-            app_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut encoder = app_context
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
-                color_attachments: &[
-                    Some(wgpu::RenderPassColorAttachment {
-                        view: surface_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    }),
-                ],
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: surface_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
@@ -293,7 +311,5 @@ impl WgpuApp for App {
 }
 
 fn main() {
-    wgpu_app::run(
-        |app_context: &AppContext| Box::new(App::new(app_context))
-    );
+    wgpu_app::run(|app_context: &AppContext| Box::new(App::new(app_context)));
 }

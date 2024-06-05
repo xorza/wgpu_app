@@ -2,17 +2,17 @@
 
 use std::time::Instant;
 
-use wgpu::DepthStencilState;
 use wgpu::util::DeviceExt;
+use wgpu::DepthStencilState;
 
 use wgpu_app::*;
 
 use crate::geometry::Cube;
 use crate::push_const::MvpPushConst;
 
+mod fps;
 mod geometry;
 mod push_const;
-mod fps;
 
 struct App {
     fps_counter: fps::FpsCounter,
@@ -46,90 +46,106 @@ impl App {
             ],
         }];
 
-        let vertex_buffer = app_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            contents: cube_geometry.vertex_bytes(),
-            usage: wgpu::BufferUsages::VERTEX,
-            label: Some("Vertex Buffer"),
-        });
+        let vertex_buffer =
+            app_context
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    contents: cube_geometry.vertex_bytes(),
+                    usage: wgpu::BufferUsages::VERTEX,
+                    label: Some("Vertex Buffer"),
+                });
 
-        let index_buffer = app_context.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: cube_geometry.index_bytes(),
-            usage: wgpu::BufferUsages::INDEX,
-        });
+        let index_buffer =
+            app_context
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Index Buffer"),
+                    contents: cube_geometry.index_bytes(),
+                    usage: wgpu::BufferUsages::INDEX,
+                });
 
-        let bind_group_layout = app_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
+        let bind_group_layout =
+            app_context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                multisampled: false,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                            },
+                            count: None,
+                        },
+                    ],
+                    label: None,
+                });
+
+        let pipeline_layout =
+            app_context
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    bind_group_layouts: &[&bind_group_layout],
+                    push_constant_ranges: &[wgpu::PushConstantRange {
+                        stages: wgpu::ShaderStages::VERTEX,
+                        range: 0..MvpPushConst::size_in_bytes(),
+                    }],
+                    label: None,
+                });
+
+        let screen_shader = app_context
+            .device
+            .create_shader_module(wgpu::include_wgsl!("../assets/shader.wgsl"));
+
+        let render_pipeline =
+            app_context
+                .device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: None,
+                    layout: Some(&pipeline_layout),
+                    vertex: wgpu::VertexState {
+                        module: &screen_shader,
+                        entry_point: "vs_main",
+                        buffers: &vertex_buffer_layout,
+                        compilation_options: Default::default(),
                     },
-                    count: None,
-                },
-            ],
-            label: None,
-        });
+                    fragment: Some(wgpu::FragmentState {
+                        module: &screen_shader,
+                        entry_point: "fs_main",
+                        targets: &[Some(app_context.surface_config.format.into())],
+                        compilation_options: Default::default(),
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        cull_mode: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        topology: wgpu::PrimitiveTopology::TriangleList,
 
-        let pipeline_layout = app_context.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::VERTEX,
-                range: 0..MvpPushConst::size_in_bytes(),
-            }],
-            label: None,
-        });
+                        ..Default::default()
+                    },
+                    depth_stencil: Some(DepthStencilState {
+                        format: wgpu::TextureFormat::Depth32Float,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: Default::default(),
+                        bias: Default::default(),
+                    }),
+                    multisample: wgpu::MultisampleState::default(),
+                    multiview: None,
+                });
 
-        let screen_shader = app_context.device.create_shader_module(
-            wgpu::include_wgsl!("../assets/shader.wgsl")
-        );
-
-        let render_pipeline = app_context.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &screen_shader,
-                entry_point: "vs_main",
-                buffers: &vertex_buffer_layout,
-                compilation_options: Default::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &screen_shader,
-                entry_point: "fs_main",
-                targets: &[Some(app_context.surface_config.format.into())],
-                compilation_options: Default::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                front_face: wgpu::FrontFace::Ccw,
-                topology: wgpu::PrimitiveTopology::TriangleList,
-
-                ..Default::default()
-            },
-            depth_stencil: Some(DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
-
-        let img = imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
-            .unwrap()
-            .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
-            .unwrap();
+        let img =
+            imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
+                .unwrap()
+                .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
+                .unwrap();
 
         let texture_extent = wgpu::Extent3d {
             width: img.desc.width(),
@@ -179,20 +195,22 @@ impl App {
             ..Default::default()
         });
 
-        let bind_group = app_context.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
-                },
-            ],
-            label: None,
-        });
+        let bind_group = app_context
+            .device
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Sampler(&sampler),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::TextureView(&texture_view),
+                    },
+                ],
+                label: None,
+            });
 
         Self {
             fps_counter: fps::FpsCounter::new(),
@@ -215,11 +233,15 @@ impl WgpuApp for App {
                 EventResult::Redraw
             }
 
-            _ => { EventResult::Continue }
+            _ => EventResult::Continue,
         }
     }
 
-    fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
+    fn render(
+        &mut self,
+        app_context: &AppContext,
+        surface_view: &wgpu::TextureView,
+    ) -> EventResult {
         if self.depth_texture_view.is_none() {
             let depth_texture_extent = wgpu::Extent3d {
                 width: app_context.window_size.x,
@@ -236,7 +258,8 @@ impl WgpuApp for App {
                 view_formats: &[],
                 label: None,
             });
-            let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+            let depth_texture_view =
+                depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
             self.depth_texture = Some(depth_texture);
             self.depth_texture_view = Some(depth_texture_view);
@@ -245,22 +268,26 @@ impl WgpuApp for App {
 
         let time = (Instant::now() - app_context.start_time).as_secs_f32();
 
-        let mut encoder =
-            app_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut encoder = app_context
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
-                color_attachments: &[
-                    Some(wgpu::RenderPassColorAttachment {
-                        view: surface_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.3, a: 1.0 }),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    }),
-                ],
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: surface_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: depth_texture_view,
                     depth_ops: Some(wgpu::Operations {
@@ -273,19 +300,18 @@ impl WgpuApp for App {
                 occlusion_query_set: None,
             });
 
-            let mvp =
-                glam::Mat4::perspective_rh_gl(
-                    45.0_f32.to_radians(), app_context.window_size.x as f32 / app_context.window_size.y as f32, 0.1, 100.0,
-                ) *
-                    glam::Mat4::look_at_rh(
-                        glam::Vec3::new(0.0, 0.0, 5.0),
-                        glam::Vec3::new(0.0, 0.0, 0.0),
-                        glam::Vec3::new(0.0, 1.0, 0.0),
-                    ) *
-                    glam::Mat4::from_rotation_x(time) *
-                    glam::Mat4::from_rotation_y(time * 0.3);
+            let mvp = glam::Mat4::perspective_rh_gl(
+                45.0_f32.to_radians(),
+                app_context.window_size.x as f32 / app_context.window_size.y as f32,
+                0.1,
+                100.0,
+            ) * glam::Mat4::look_at_rh(
+                glam::Vec3::new(0.0, 0.0, 5.0),
+                glam::Vec3::new(0.0, 0.0, 0.0),
+                glam::Vec3::new(0.0, 1.0, 0.0),
+            ) * glam::Mat4::from_rotation_x(time)
+                * glam::Mat4::from_rotation_y(time * 0.3);
             let pc = MvpPushConst { mvp };
-
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
@@ -308,7 +334,5 @@ impl WgpuApp for App {
 }
 
 fn main() {
-    wgpu_app::run(
-        |app_context: &AppContext| Box::new(App::new(app_context))
-    );
+    wgpu_app::run(|app_context: &AppContext| Box::new(App::new(app_context)));
 }

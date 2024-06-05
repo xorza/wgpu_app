@@ -17,9 +17,7 @@ impl App {
         );
         Self::update_texture(app_context, &fullscreen_texture);
 
-        Self {
-            fullscreen_texture,
-        }
+        Self { fullscreen_texture }
     }
 }
 
@@ -27,21 +25,28 @@ impl WgpuApp for App {
     fn window_event(&mut self, app_context: &AppContext, event: WindowEvent) -> EventResult {
         match event {
             WindowEvent::Resized(new_size) => {
-                self.fullscreen_texture.resize_window(&app_context.device, new_size);
+                self.fullscreen_texture
+                    .resize_window(&app_context.device, new_size);
                 Self::update_texture(app_context, &self.fullscreen_texture);
 
                 EventResult::Redraw
             }
 
-            _ => { EventResult::Continue }
+            _ => EventResult::Continue,
         }
     }
 
-    fn render(&mut self, app_context: &AppContext, surface_view: &wgpu::TextureView) -> EventResult {
-        let mut command_encoder =
-            app_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+    fn render(
+        &mut self,
+        app_context: &AppContext,
+        surface_view: &wgpu::TextureView,
+    ) -> EventResult {
+        let mut command_encoder = app_context
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        self.fullscreen_texture.render(&mut command_encoder, surface_view);
+        self.fullscreen_texture
+            .render(&mut command_encoder, surface_view);
 
         app_context.queue.submit([command_encoder.finish()]);
 
@@ -51,7 +56,8 @@ impl WgpuApp for App {
 
 impl App {
     fn update_texture(app_context: &AppContext, fullscreen_texture: &FullScreenTexture) {
-        let mut bytes = vec![255u8; (4 * app_context.window_size.x * app_context.window_size.y) as usize];
+        let mut bytes =
+            vec![255u8; (4 * app_context.window_size.x * app_context.window_size.y) as usize];
         for i in 0..app_context.window_size.x {
             for j in 0..app_context.window_size.y {
                 let index = (4 * (i + j * app_context.window_size.x)) as usize;
@@ -85,7 +91,5 @@ impl App {
 }
 
 fn main() {
-    wgpu_app::run(
-        |app_context: &AppContext| Box::new(App::new(app_context))
-    );
+    wgpu_app::run(|app_context: &AppContext| Box::new(App::new(app_context)));
 }

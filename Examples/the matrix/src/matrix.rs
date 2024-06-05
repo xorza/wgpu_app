@@ -27,12 +27,11 @@ pub(crate) struct Thread {
 }
 
 pub(crate) struct Matrix {
-    streams: Vec<Thread>,
+    threads: Vec<Thread>,
     prev_time: f32,
 }
 
 const MAX_LENGTH: u8 = 255;
-
 
 impl Default for Symbol {
     fn default() -> Self {
@@ -73,10 +72,10 @@ impl Default for Thread {
 
 impl Thread {
     fn init(&mut self) {
-        self.decay = 0.3;
-        self.pos = glam::Vec2::new(0.0, 0.0);
-        self.vel = 2.0;
-        self.size = 0.01;
+        self.decay = random::<f32>() * 0.3 + 0.01;
+        self.pos = glam::Vec2::new(random::<f32>(), random::<f32>() * 1.8 - 0.5);
+        self.vel = random::<f32>() * 7.0 + 0.3;
+        self.size = random::<f32>() * 0.03 + 0.002;
         self.top_symbol = 0;
         self.length = (random::<u8>() % MAX_LENGTH) as usize;
 
@@ -105,13 +104,15 @@ impl Thread {
 
 impl Matrix {
     pub fn new() -> Self {
-        let mut streams = vec! {
-            Thread::default()
-        };
-        streams.iter_mut().for_each(|stream| stream.init());
+        let mut threads: Vec<Thread> = vec![];
+        for _ in 0..250 {
+            let mut thread = Thread::default();
+            thread.init();
+            threads.push(thread);
+        }
 
         Self {
-            streams,
+            threads,
             prev_time: 0.0,
         }
     }
@@ -120,38 +121,51 @@ impl Matrix {
         let delta = time - self.prev_time;
         self.prev_time = time;
 
-        for stream in self.streams.iter_mut() {
+        for stream in self.threads.iter_mut() {
             stream.update(delta);
         }
+
+        self.threads
+            .sort_unstable_by(|a, b| a.size.partial_cmp(&b.size).unwrap());
     }
     pub fn geometry(&self, vb: &mut Vec<Vertex>, ib: &mut Vec<u16>) {
         vb.clear();
         ib.clear();
 
-        for stream in self.streams.iter() {
-            let scale = 0.09;
-            let mut offset = stream.pos;
-            offset.y = 0.8;
-            offset.x = 0.3;
+        for thread in self.threads.iter() {
+            let scale = thread.size;
+            let iter = thread.symbols[0..thread.top_symbol + 1]
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, symbol)| {
+                    let pos = thread.pos - glam::Vec2::new(0.0, thread.size * idx as f32)
+                        + scale * glam::Vec2::new(-0.5, -0.5);
 
-            for symbol in stream.symbols[0..stream.top_symbol + 1].iter() {
+                    if symbol.opacity > 0.0 && pos.y >= 0.0 && pos.y <= 1.0 {
+                        Some((symbol, pos))
+                    } else {
+                        None
+                    }
+                });
+
+            for (symbol, pos) in iter {
                 vb.push(Vertex {
-                    pos: offset + scale * glam::Vec2::new(-0.5, -0.5),
+                    pos: pos + scale * glam::Vec2::new(-0.5, -0.5),
                     uv: glam::Vec2::new(0.0, 1.0),
                     color: glam::Vec2::new(1.0, symbol.opacity),
                 });
                 vb.push(Vertex {
-                    pos: offset + scale * glam::Vec2::new(-0.5, 0.5),
+                    pos: pos + scale * glam::Vec2::new(-0.5, 0.5),
                     uv: glam::Vec2::new(0.0, 0.0),
                     color: glam::Vec2::new(1.0, symbol.opacity),
                 });
                 vb.push(Vertex {
-                    pos: offset + scale * glam::Vec2::new(0.5, -0.5),
+                    pos: pos + scale * glam::Vec2::new(0.5, -0.5),
                     uv: glam::Vec2::new(1.0, 1.0),
                     color: glam::Vec2::new(1.0, symbol.opacity),
                 });
                 vb.push(Vertex {
-                    pos: offset + scale * glam::Vec2::new(0.5, 0.5),
+                    pos: pos + scale * glam::Vec2::new(0.5, 0.5),
                     uv: glam::Vec2::new(1.0, 0.0),
                     color: glam::Vec2::new(1.0, symbol.opacity),
                 });
@@ -163,8 +177,6 @@ impl Matrix {
                 ib.push((vb.len() - 1) as u16);
                 ib.push((vb.len() - 3) as u16);
                 ib.push((vb.len() - 2) as u16);
-
-                offset.y -= scale;
             }
         }
     }

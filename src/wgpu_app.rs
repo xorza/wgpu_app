@@ -35,7 +35,11 @@ pub struct UserEventType {}
 
 pub trait WgpuApp {
     fn window_event(&mut self, app_context: &AppContext, event: WindowEvent) -> EventResult;
-    fn render(&mut self, app_context: &AppContext, surface_texture_view: &wgpu::TextureView) -> EventResult;
+    fn render(
+        &mut self,
+        app_context: &AppContext,
+        surface_texture_view: &wgpu::TextureView,
+    ) -> EventResult;
 }
 
 struct AppState<'window> {
@@ -150,7 +154,12 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         let _ = (event_loop, user_event);
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: winit::event::WindowEvent) {
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: winit::event::WindowEvent,
+    ) {
         if self.main_window_context.is_none() {
             return;
         }
@@ -171,13 +180,21 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
                 let window_context = self.main_window_context.as_mut().unwrap();
                 let event = WindowEvent::convert_event(&event, &mut window_context.mouse_position);
                 if !matches!(event, WindowEvent::Unknown) {
-                    self.app.as_mut().unwrap().window_event(window_context, event);
+                    self.app
+                        .as_mut()
+                        .unwrap()
+                        .window_event(window_context, event);
                 }
             }
         }
     }
 
-    fn device_event(&mut self, event_loop: &ActiveEventLoop, window_id: DeviceId, event: DeviceEvent) {
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: DeviceId,
+        event: DeviceEvent,
+    ) {
         if self.main_window_context.is_none() {
             return;
         }
@@ -192,7 +209,6 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
         let window_context = self.main_window_context.as_mut().unwrap();
 
-
         if window_context.is_resizing {
             window_context.is_resizing = false;
 
@@ -201,13 +217,18 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
                 window_context.window_size = window_size;
                 window_context.surface_config.width = window_size.x;
                 window_context.surface_config.height = window_size.y;
-                window_context.surface.configure(&window_context.device, &window_context.surface_config);
+                window_context
+                    .surface
+                    .configure(&window_context.device, &window_context.surface_config);
 
-                let resize_result = self.app.as_mut().unwrap().window_event(window_context, WindowEvent::Resized(window_size));
+                let resize_result = self
+                    .app
+                    .as_mut()
+                    .unwrap()
+                    .window_event(window_context, WindowEvent::Resized(window_size));
                 Self::process_event_result(event_loop, window_context, resize_result);
             }
         };
-
 
         self.redraw(event_loop);
     }
@@ -219,7 +240,11 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 }
 
 impl<'window> AppState<'window> {
-    fn process_event_result(event_loop: &ActiveEventLoop, window_context: &mut AppContext, resize_result: EventResult) {
+    fn process_event_result(
+        event_loop: &ActiveEventLoop,
+        window_context: &mut AppContext,
+        resize_result: EventResult,
+    ) {
         match resize_result {
             EventResult::Exit => {
                 window_context.redraw_requested = false;
@@ -256,15 +281,12 @@ impl<'window> AppState<'window> {
             .device
             .push_error_scope(wgpu::ErrorFilter::Validation);
 
-        let surface_texture = surface
-            .get_current_texture()
-            .unwrap_or_else(|_| {
-                surface
-                    .configure(&window_context.device, &window_context.surface_config);
-                surface
-                    .get_current_texture()
-                    .expect("Failed to acquire next surface texture.")
-            });
+        let surface_texture = surface.get_current_texture().unwrap_or_else(|_| {
+            surface.configure(&window_context.device, &window_context.surface_config);
+            surface
+                .get_current_texture()
+                .expect("Failed to acquire next surface texture.")
+        });
         let surface_texture_view =
             surface_texture
                 .texture
@@ -273,7 +295,11 @@ impl<'window> AppState<'window> {
                     ..wgpu::TextureViewDescriptor::default()
                 });
 
-        let event_result = self.app.as_mut().unwrap().render(window_context, &surface_texture_view);
+        let event_result = self
+            .app
+            .as_mut()
+            .unwrap()
+            .render(window_context, &surface_texture_view);
 
         surface_texture.present();
 
