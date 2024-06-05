@@ -147,9 +147,9 @@ impl App {
                 });
 
         let img =
-            imaginarium::image::Image::read_file("./Examples/three_d/assets/Screenshot_01.png")
+            imaginarium::image::Image::read_file("./Examples/the matrix/assets/ascii_texture.png")
                 .unwrap()
-                .convert(imaginarium::color_format::ColorFormat::RGBA_U8)
+                .convert(imaginarium::color_format::ColorFormat::GRAY_U8)
                 .unwrap();
 
         let texture_extent = wgpu::Extent3d {
@@ -162,7 +162,7 @@ impl App {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format: wgpu::TextureFormat::R8Unorm,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_DST,

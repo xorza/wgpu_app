@@ -37,5 +37,5 @@ var color: texture_2d<f32>;
 fn fs_main(vertex: VertexOutput) -> @location(0) vec4<f32> {
     let v_color: vec4<f32> = textureSample(color, the_sampler, vertex.uv);
 
-    return v_color * vec4(0.0, vertex.color.r, 1.0,  vertex.color.g);
+    return v_color.r * vec4(0.05, vertex.color.r, 0.2,  vertex.color.g);
 }
