@@ -20,6 +20,9 @@ struct App {
     index_buffer: wgpu::Buffer,
 
     matrix: matrix::Matrix,
+
+    vb: Vec<Vertex>,
+    ib: Vec<u16>,
 }
 
 impl App {
@@ -224,6 +227,8 @@ impl App {
             vertex_buffer,
             index_buffer,
             matrix: matrix::Matrix::new(),
+            vb: vec![],
+            ib: vec![],
         }
     }
 }
@@ -260,16 +265,13 @@ impl WgpuApp for App {
         };
         let pc = MvpPushConst { mvp };
 
-        let vb = &mut Vec::new();
-        let ib = &mut Vec::new();
-
-        self.matrix.geometry(vb, ib);
+        self.matrix.geometry(&mut self.vb, &mut self.ib);
         app_context
             .queue
-            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vb));
+            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vb));
         app_context
             .queue
-            .write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(ib));
+            .write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(&self.ib));
 
         let mut encoder = app_context
             .device
@@ -297,7 +299,7 @@ impl WgpuApp for App {
 
             render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, pc.as_bytes());
             render_pass.set_bind_group(0, &self.bind_group, &[]);
-            render_pass.draw_indexed(0..ib.len() as u32, 0, 0..1);
+            render_pass.draw_indexed(0..self.ib.len() as u32, 0, 0..1);
         }
 
         app_context.queue.submit([encoder.finish()]);
