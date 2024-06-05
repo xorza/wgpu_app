@@ -26,7 +26,6 @@ pub(crate) struct Thread {
     symbols: Vec<Symbol>,
     top_symbol: usize,
     length: usize,
-    finished: bool,
     last_symbol_time: f32,
 }
 
@@ -64,11 +63,10 @@ impl Symbol {
     }
 }
 
-impl Default for Thread {
-    fn default() -> Self {
+impl Thread {
+    fn new() -> Self {
         let symbols = Vec::with_capacity(MAX_LENGTH as usize);
-
-        Self {
+        let mut result = Self {
             decay: 0.0,
             pos: glam::Vec2::new(0.0, 0.0),
             new_symbol_delta: 0.0,
@@ -76,13 +74,12 @@ impl Default for Thread {
             symbols,
             top_symbol: 0,
             length: 0,
-            finished: false,
             last_symbol_time: 0.0,
-        }
-    }
-}
+        };
+        result.init();
 
-impl Thread {
+        result
+    }
     fn init(&mut self) {
         self.decay = random::<f32>() * 0.3 + 0.01;
         self.pos = glam::Vec2::new(random::<f32>(), random::<f32>() * 1.8 - 0.5);
@@ -109,7 +106,10 @@ impl Thread {
             self.symbols.push(Symbol::new_rand());
         }
 
-        self.finished = self.symbols[self.top_symbol].opacity <= 0.0;
+        let finished = self.symbols[self.top_symbol].opacity <= 0.0;
+        if finished {
+            self.init();
+        }
     }
 }
 
@@ -117,12 +117,10 @@ impl Matrix {
     pub fn new() -> Self {
         let mut threads: Vec<Thread> = vec![];
         for _ in 0..THREAD_COUNT {
-            let mut thread = Thread::default();
-            thread.init();
-            threads.push(thread);
+            threads.push(Thread::new());
         }
         for thread in threads.iter_mut() {
-            for i in -99..0 {
+            for i in -999..0 {
                 thread.update((i as f32) * 0.016, 0.016);
             }
         }
@@ -140,15 +138,6 @@ impl Matrix {
         for thread in self.threads.iter_mut() {
             thread.update(time, delta);
         }
-        self.threads.retain(|thread| !thread.finished);
-        for _ in self.threads.len()..THREAD_COUNT {
-            let mut thread = Thread::default();
-            thread.init();
-            self.threads.push(thread);
-        }
-
-        // self.threads
-        //     .sort_unstable_by(|a, b| a.size.partial_cmp(&b.size).unwrap());
     }
     pub fn geometry(&self, vb: &mut Vec<Vertex>, ib: &mut Vec<u16>) {
         vb.clear();
