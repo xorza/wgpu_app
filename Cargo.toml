@@ -9,9 +9,10 @@ anyhow = "1.0"
 wgpu = "0.20"
 bytemuck = { version = "1.16", features = ["derive"] }
 pollster = "0.3"
-glam = { version = "0.27", features = ["bytemuck"] }
+glam = { version = "0.28", features = ["bytemuck"] }
 winit = "0.30"
 rand = "0.8"
+imaginarium = { git = "https://github.com/xorza/imaginarium.git" }
 
 [dependencies]
 winit = { workspace = true }
