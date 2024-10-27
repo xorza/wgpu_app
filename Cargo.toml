@@ -12,6 +12,7 @@ pollster = "0.3"
 glam = { version = "0.29", features = ["bytemuck"] }
 winit = "0.30"
 rand = "0.8"
+imaginarium = { git = "https://github.com/xorza/imaginarium.git" }
 
 [dependencies]
 winit = { workspace = true }
