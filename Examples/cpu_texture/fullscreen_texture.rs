@@ -117,6 +117,7 @@ impl FullScreenTexture {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         let bind_group = TextureBindGroup::new(device, &bind_group_layout, &sampler, window_size);
