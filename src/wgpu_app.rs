@@ -112,6 +112,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
                     label: None,
                     required_features: wgpu::Features::PUSH_CONSTANTS,
                     required_limits,
+                    memory_hints: wgpu::MemoryHints::Performance,
                 },
                 None,
             )
