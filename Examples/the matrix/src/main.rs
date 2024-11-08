@@ -112,13 +112,13 @@ impl App {
                     layout: Some(&pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &screen_shader,
-                        entry_point: "vs_main",
+                        entry_point: Some("vs_main"),
                         buffers: &vertex_buffer_layout,
                         compilation_options: Default::default(),
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &screen_shader,
-                        entry_point: "fs_main",
+                        entry_point: Some("fs_main"),
                         targets: &[Some(wgpu::ColorTargetState {
                             format: app_context.surface_config.format,
                             blend: Some(wgpu::BlendState {
