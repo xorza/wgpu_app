@@ -6,10 +6,10 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
-wgpu = "0.20"
+wgpu = "24"
 bytemuck = { version = "1.16", features = ["derive"] }
-pollster = "0.3"
-glam = { version = "0.28", features = ["bytemuck"] }
+pollster = "0.4"
+glam = { version = "0.29", features = ["bytemuck"] }
 winit = "0.30"
 rand = "0.8"
 imaginarium = { git = "https://github.com/xorza/imaginarium.git" }

@@ -113,13 +113,13 @@ impl App {
                     layout: Some(&pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: &screen_shader,
-                        entry_point: "vs_main",
+                        entry_point: Some("vs_main"),
                         buffers: &vertex_buffer_layout,
                         compilation_options: Default::default(),
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &screen_shader,
-                        entry_point: "fs_main",
+                        entry_point: Some("fs_main"),
                         targets: &[Some(app_context.surface_config.format.into())],
                         compilation_options: Default::default(),
                     }),
@@ -139,6 +139,7 @@ impl App {
                     }),
                     multisample: wgpu::MultisampleState::default(),
                     multiview: None,
+                    cache: None,
                 });
 
         let img =
@@ -167,14 +168,14 @@ impl App {
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         app_context.queue.write_texture(
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: Default::default(),
             },
             img.bytes.as_slice(),
-            wgpu::ImageDataLayout {
+            wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(img.desc.stride()),
                 rows_per_image: Some(img.desc.height()),

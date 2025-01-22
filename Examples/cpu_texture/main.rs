@@ -69,14 +69,14 @@ impl App {
         }
 
         app_context.queue.write_texture(
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture: fullscreen_texture.get_texture(),
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: Default::default(),
             },
             bytes.as_slice(),
-            wgpu::ImageDataLayout {
+            wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(4 * app_context.window_size.x),
                 rows_per_image: Some(app_context.window_size.y),

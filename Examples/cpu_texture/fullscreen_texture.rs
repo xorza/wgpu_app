@@ -97,13 +97,13 @@ impl FullScreenTexture {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &screen_shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &vertex_buffer_layout,
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &screen_shader,
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 targets: &[Some(surface_format.into())],
                 compilation_options: Default::default(),
             }),
@@ -117,6 +117,7 @@ impl FullScreenTexture {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         let bind_group = TextureBindGroup::new(device, &bind_group_layout, &sampler, window_size);
