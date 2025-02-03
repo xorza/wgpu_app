@@ -18,7 +18,6 @@ imaginarium = { git = "https://github.com/xorza/imaginarium.git" }
 winit = { workspace = true }
 wgpu = { workspace = true }
 glam = { workspace = true }
-anyhow = { workspace = true }
 pollster = { workspace = true }
 bytemuck = { workspace = true }
 
