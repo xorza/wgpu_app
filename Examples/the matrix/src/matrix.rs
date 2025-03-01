@@ -83,7 +83,7 @@ impl Thread {
     fn init(&mut self) {
         self.decay = random::<f32>() * 0.3 + 0.01;
         self.pos = glam::Vec2::new(random::<f32>(), random::<f32>() * 1.8 - 0.5);
-        self.new_symbol_delta = random::<f32>() * 0.3 + 0.03;
+        self.new_symbol_delta = random::<f32>() * 0.07 + 0.02;
         self.size = random::<f32>() * 0.03 + 0.002;
         self.top_symbol = 0;
         self.length = (random::<u8>() % MAX_LENGTH) as usize;
