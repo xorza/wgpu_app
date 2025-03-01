@@ -1,11 +1,12 @@
 #![allow(dead_code)]
 
-use std::time::Instant;
 
 use wgpu::util::DeviceExt;
 use wgpu::DepthStencilState;
 
 use wgpu_app::*;
+use wgpu_app::WindowEvent::{self};
+use wgpu_app::EventResult;
 
 use crate::geometry::Cube;
 use crate::push_const::MvpPushConst;
@@ -23,6 +24,11 @@ struct App {
     index_buffer: wgpu::Buffer,
     depth_texture: Option<wgpu::Texture>,
     depth_texture_view: Option<wgpu::TextureView>,
+    
+    // Quaternion-based rotation state
+    rotation: glam::Quat,
+    is_mouse_pressed: bool,
+    last_mouse_position: Option<glam::UVec2>,
 }
 
 impl App {
@@ -221,17 +227,202 @@ impl App {
             index_buffer,
             depth_texture: None,
             depth_texture_view: None,
+            
+            // Initialize quaternion rotation state
+            rotation: glam::Quat::IDENTITY,
+            is_mouse_pressed: false,
+            last_mouse_position: None,
+        }
+    }
+    
+    // Helper method to perform arcball rotation from screen coordinates
+    fn arcball_rotation(&self, window_size: glam::UVec2, from: glam::UVec2, to: glam::UVec2) -> glam::Quat {
+        // First check if there's actually any movement - if positions are identical, return identity
+        if from == to {
+            return glam::Quat::IDENTITY;
+        }
+        
+        // Convert screen coordinates to normalized device coordinates (-1 to 1)
+        // Scale factor makes the effective sphere larger (values < 1.0 create larger sphere)
+        // Decreased to make rotation more sensitive
+        let scale_factor = 0.6; // Reduced from 0.8 for higher sensitivity
+        
+        let screen_to_ndc = |pos: glam::UVec2| -> glam::Vec2 {
+            glam::Vec2::new(
+                ((2.0 * pos.x as f32) / window_size.x as f32 - 1.0) * scale_factor,
+                (1.0 - (2.0 * pos.y as f32) / window_size.y as f32) * scale_factor
+            )
+        };
+        
+        // Convert to normalized device coordinates
+        let from_ndc = screen_to_ndc(from);
+        let to_ndc = screen_to_ndc(to);
+        
+        // Check if movement is too small to produce reliable rotation
+        let delta_ndc = to_ndc - from_ndc;
+        let movement_sq = delta_ndc.length_squared();
+        
+        // For extremely tiny movements, create a minimal rotation in the direction of movement
+        // This ensures even slow mouse movements create some rotation
+        if movement_sq < 1e-6 {
+            // Determine primary movement direction
+            let axis = if delta_ndc.x.abs() > delta_ndc.y.abs() {
+                // Primarily horizontal movement
+                glam::Vec3::new(0.0, 1.0, 0.0) // Rotate around Y-axis
+            } else {
+                // Primarily vertical movement
+                glam::Vec3::new(1.0, 0.0, 0.0) // Rotate around X-axis
+            };
+            
+            // Create a small rotation in that direction
+            // Sign determines rotation direction
+            let sign = if (delta_ndc.x > 0.0 && delta_ndc.x.abs() > delta_ndc.y.abs()) || 
+                         (delta_ndc.y < 0.0 && delta_ndc.y.abs() >= delta_ndc.x.abs()) {
+                1.0
+            } else {
+                -1.0
+            };
+            
+            // Create minimal rotation - increased for faster response
+            let min_angle = 0.003 * sign; // Increased from 0.001 for faster response
+            return glam::Quat::from_axis_angle(axis, min_angle);
+        }
+        
+        // Project onto virtual sphere - using a larger virtual sphere
+        // Increased radius makes rotation more sensitive
+        let sphere_radius = 1.1; // Reduced from 1.3 for higher sensitivity
+        let radius_sq = sphere_radius * sphere_radius;
+        
+        let project_to_sphere = |p: glam::Vec2| -> glam::Vec3 {
+            let len_sq = p.dot(p);
+            
+            // If point is on the sphere
+            if len_sq <= radius_sq {
+                // Project onto sphere surface
+                glam::Vec3::new(p.x, p.y, (radius_sq - len_sq).sqrt())
+            } else {
+                // If point is outside the sphere, project onto the sphere
+                let normalized = p.normalize() * sphere_radius;
+                glam::Vec3::new(normalized.x, normalized.y, 0.0)
+            }
+        };
+        
+        // Get 3D points on the virtual sphere
+        let from_sphere = project_to_sphere(from_ndc);
+        let to_sphere = project_to_sphere(to_ndc);
+        
+        // Apply additional smoothing for motions near the edge
+        // Compute direction vectors from origin to the points
+        let from_dir = from_sphere.normalize();
+        let to_dir = to_sphere.normalize();
+        
+        // Axis of rotation is the cross product of the two vectors
+        let axis = from_dir.cross(to_dir);
+        let axis_len_sq = axis.length_squared();
+        
+        // Angle of rotation is the dot product of the two vectors
+        let cos_angle = from_dir.dot(to_dir).clamp(-1.0, 1.0);
+        
+        // Create quaternion from axis and angle - with handling for near-parallel vectors
+        // Using a much smaller threshold to capture tiny movements
+        if axis_len_sq < 1e-10 || (cos_angle - 1.0).abs() < 1e-10 {
+            // Even for tiny rotations, provide a small rotation feedback
+            // This creates a more responsive feel for slow movements
+            let min_angle = 0.003; // Increased from 0.001 for faster response
+            
+            // Use movement direction to determine rotation axis
+            let minimal_axis = if delta_ndc.x.abs() > delta_ndc.y.abs() {
+                glam::Vec3::new(0.0, 1.0, 0.0) // Y-axis for horizontal movement
+            } else {
+                glam::Vec3::new(1.0, 0.0, 0.0) // X-axis for vertical movement
+            };
+            
+            // Direction based on movement direction
+            let sign = if (delta_ndc.x > 0.0 && delta_ndc.x.abs() > delta_ndc.y.abs()) || 
+                         (delta_ndc.y < 0.0 && delta_ndc.y.abs() >= delta_ndc.x.abs()) {
+                1.0
+            } else {
+                -1.0
+            };
+            
+            glam::Quat::from_axis_angle(minimal_axis, min_angle * sign)
+        } else {
+            // Normal case - calculate rotation based on arcball movement
+            // Scale up angle for slow movements to make them more noticeable
+            // but keep normal scaling for larger movements
+            let angle = cos_angle.acos();
+            
+            // Adjust rotation speed with dynamic scaling:
+            // - For very small angles, apply higher scaling to make them more noticeable
+            // - For larger movements, keep the standard scaling
+            let angle_scale = if angle < 0.01 {
+                // Boost tiny movements to be more noticeable
+                2.5 // Increased from 1.0 for faster small rotations
+            } else {
+                // Normal scaling for regular movements
+                1.8 // Increased from 0.7 for faster regular rotations
+            };
+            
+            let scaled_angle = angle * angle_scale;
+            glam::Quat::from_axis_angle(axis.normalize(), scaled_angle)
         }
     }
 }
 
 impl WgpuApp for App {
-    fn window_event(&mut self, _app_context: &AppContext, event: WindowEvent) -> EventResult {
+    fn window_event(&mut self, app_context: &AppContext, event: WindowEvent) -> EventResult {
         match event {
             WindowEvent::Resized(_new_size) => {
                 self.depth_texture = None;
                 self.depth_texture_view = None;
                 EventResult::Redraw
+            }
+            
+            // Use index 0 to check for left mouse button
+            WindowEvent::MouseButton(ref _button, ref state, position) => {
+                // 0 is typically the left mouse button index
+                if let WindowEvent::MouseButton(_, _, _) = event {
+                    // Simple approach - just track if any mouse button is pressed
+                    // Set is_mouse_pressed based on if it's a press or release event
+                    let is_pressed = match state {
+                        // First component is Pressed
+                        s if format!("{:?}", s).contains("Pressed") => true,
+                        _ => false,
+                    };
+                    
+                    self.is_mouse_pressed = is_pressed;
+                    
+                    if self.is_mouse_pressed {
+                        self.last_mouse_position = Some(position);
+                    } else {
+                        self.last_mouse_position = None;
+                    }
+                }
+                EventResult::Continue
+            }
+            
+            WindowEvent::MouseMove { position, delta:_delta } => {
+                if self.is_mouse_pressed {
+                    if let Some(last_pos) = self.last_mouse_position {
+                        // Use arcball rotation to calculate quaternion delta
+                        let delta_rotation = self.arcball_rotation(
+                            app_context.window_size,
+                            last_pos,
+                            position
+                        );
+                        
+                        // Apply the delta rotation to the current rotation
+                        // Note: quaternion multiplication is in reverse order
+                        // New rotation = delta_rotation * current_rotation
+                        self.rotation = delta_rotation * self.rotation;
+                        self.rotation = self.rotation.normalize(); // Prevents precision errors
+                    }
+                    
+                    self.last_mouse_position = Some(position);
+                    EventResult::Redraw
+                } else {
+                    EventResult::Continue
+                }
             }
 
             _ => EventResult::Continue,
@@ -267,8 +458,6 @@ impl WgpuApp for App {
         }
         let depth_texture_view = self.depth_texture_view.as_ref().unwrap();
 
-        let time = (Instant::now() - app_context.start_time).as_secs_f32();
-
         let mut encoder = app_context
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -301,6 +490,9 @@ impl WgpuApp for App {
                 occlusion_query_set: None,
             });
 
+            // Convert quaternion to rotation matrix
+            let rotation_matrix = glam::Mat4::from_quat(self.rotation);
+            
             let mvp = glam::Mat4::perspective_rh_gl(
                 45.0_f32.to_radians(),
                 app_context.window_size.x as f32 / app_context.window_size.y as f32,
@@ -310,8 +502,8 @@ impl WgpuApp for App {
                 glam::Vec3::new(0.0, 0.0, 5.0),
                 glam::Vec3::new(0.0, 0.0, 0.0),
                 glam::Vec3::new(0.0, 1.0, 0.0),
-            ) * glam::Mat4::from_rotation_x(time)
-                * glam::Mat4::from_rotation_y(time * 0.3);
+            ) * rotation_matrix;
+            
             let pc = MvpPushConst { mvp };
 
             render_pass.set_pipeline(&self.render_pipeline);
@@ -320,7 +512,6 @@ impl WgpuApp for App {
 
             render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, pc.as_bytes());
             render_pass.set_bind_group(0, &self.bind_group, &[]);
-            // render_pass.draw(0..Cube::vertex_count(), 0..1);
             render_pass.draw_indexed(0..Cube::index_count(), 0, 0..1);
         }
 

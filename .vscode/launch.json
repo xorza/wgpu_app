@@ -1,0 +1,138 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'three_d'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=three_d",
+                    "--package=three_d"
+                ],
+                "filter": {
+                    "name": "three_d",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'three_d'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=three_d",
+                    "--package=three_d"
+                ],
+                "filter": {
+                    "name": "three_d",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'wgpu_app'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=wgpu_app"
+                ],
+                "filter": {
+                    "name": "wgpu_app",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'cpu_texture'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=cpu_texture",
+                    "--package=wgpu_app"
+                ],
+                "filter": {
+                    "name": "cpu_texture",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in example 'cpu_texture'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--example=cpu_texture",
+                    "--package=wgpu_app"
+                ],
+                "filter": {
+                    "name": "cpu_texture",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'the_matrix'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=the_matrix",
+                    "--package=the_matrix"
+                ],
+                "filter": {
+                    "name": "the_matrix",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'the_matrix'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=the_matrix",
+                    "--package=the_matrix"
+                ],
+                "filter": {
+                    "name": "the_matrix",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
