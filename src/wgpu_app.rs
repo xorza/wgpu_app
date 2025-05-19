@@ -103,15 +103,13 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         .using_resolution(adapter.limits());
 
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: wgpu::Features::PUSH_CONSTANTS,
-                    required_limits,
-                    memory_hints: Default::default(),
-                },
-                None,
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                label: None,
+                required_features: wgpu::Features::PUSH_CONSTANTS,
+                required_limits,
+                memory_hints: Default::default(),
+                trace: Default::default(),
+            })
             .block_on()
             .expect("Unable to find a suitable GPU adapter.");
 
@@ -300,7 +298,7 @@ impl<'window> AppState<'window> {
 
         surface_texture.present();
 
-        Self::process_event_result(&event_loop, window_context, event_result);
+        Self::process_event_result(event_loop, window_context, event_result);
     }
 }
 
