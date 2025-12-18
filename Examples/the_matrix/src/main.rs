@@ -93,10 +93,7 @@ impl App {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[wgpu::PushConstantRange {
-                        stages: wgpu::ShaderStages::VERTEX,
-                        range: 0..MvpPushConst::size_in_bytes(),
-                    }],
+                    immediate_size: MvpPushConst::size_in_bytes(),
                     label: None,
                 });
 
@@ -146,12 +143,12 @@ impl App {
                     },
                     depth_stencil: None,
                     multisample: wgpu::MultisampleState::default(),
-                    multiview: None,
+                    multiview_mask: None,
                     cache: None,
                 });
 
         let img =
-            imaginarium::image::Image::read_file("./Examples/the matrix/assets/ascii_texture.png")
+            imaginarium::image::Image::read_file("./Examples/the_matrix/assets/ascii_texture.png")
                 .unwrap()
                 .convert(imaginarium::color_format::ColorFormat::GRAY_U8)
                 .unwrap();
@@ -283,22 +280,21 @@ impl WgpuApp for App {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: surface_view,
-                    resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Store,
                     },
+                    resolve_target: None,
+                    depth_slice: None,
                 })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
+                ..Default::default()
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
-            render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, pc.as_bytes());
+            render_pass.set_immediates(0, pc.as_bytes());
             render_pass.set_bind_group(0, &self.bind_group, &[]);
             render_pass.draw_indexed(0..self.ib.len() as u32, 0, 0..1);
         }

@@ -8,7 +8,7 @@ struct VertexOutput {
 struct PushConstant {
     mvp: mat4x4<f32>,
 };
-var<push_constant> pc: PushConstant;
+var<immediate> pc: PushConstant;
 
 @vertex
 fn vs_main(

@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use glam::UVec2;
 use pollster::FutureExt;
+use wgpu::Features;
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
@@ -59,7 +60,11 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
             panic!("Resumed called twice");
         }
 
-        let primary_monitor = event_loop.primary_monitor().unwrap();
+        let monitors = event_loop.available_monitors().collect::<Vec<_>>();
+        println!("Available Monitors: {:?}", monitors);
+        let primary_monitor = event_loop
+            .primary_monitor()
+            .unwrap_or_else(move || monitors.first().cloned().unwrap());
         let _video_mode = primary_monitor
             .video_modes()
             .max_by(|a: &VideoModeHandle, b: &VideoModeHandle| {
@@ -80,8 +85,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
-            flags: Default::default(),
-            backend_options: Default::default(),
+            ..Default::default()
         });
 
         let surface = instance.create_surface(window.clone()).unwrap();
@@ -97,7 +101,7 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
 
         // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the surface.
         let required_limits = wgpu::Limits {
-            max_push_constant_size: 256,
+            max_immediate_size: 256,
             ..Default::default()
         }
         .using_resolution(adapter.limits());
@@ -105,10 +109,9 @@ impl<'window> ApplicationHandler<UserEventType> for AppState<'window> {
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::PUSH_CONSTANTS,
                 required_limits,
-                memory_hints: Default::default(),
-                trace: Default::default(),
+                required_features: Features::IMMEDIATES,
+                ..Default::default()
             })
             .block_on()
             .expect("Unable to find a suitable GPU adapter.");
@@ -256,13 +259,7 @@ impl<'window> AppState<'window> {
     fn redraw(&mut self, event_loop: &ActiveEventLoop) {
         let window_context = self.main_window_context.as_mut().unwrap();
 
-        if window_context.is_redrawing {
-            window_context.is_redrawing = false;
-
-            if let Some(error) = window_context.device.pop_error_scope().block_on() {
-                panic!("Device error: {:?}", error);
-            }
-        }
+        window_context.is_redrawing = false;
 
         if !window_context.redraw_requested {
             return;
@@ -272,7 +269,7 @@ impl<'window> AppState<'window> {
 
         let surface = &window_context.surface;
 
-        window_context
+        let _error_scope = window_context
             .device
             .push_error_scope(wgpu::ErrorFilter::Validation);
 

@@ -6,7 +6,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
-wgpu = "25"
+wgpu = "28"
 bytemuck = { version = "1.23", features = ["derive"] }
 pollster = "0.4"
 glam = { version = "0.30", features = ["bytemuck"] }
@@ -26,4 +26,4 @@ name = "cpu_texture"
 path = "Examples/cpu_texture/main.rs"
 
 [workspace]
-members = ["Examples/three_d", "Examples/the matrix"]
+members = ["Examples/three_d", "Examples/the_matrix"]

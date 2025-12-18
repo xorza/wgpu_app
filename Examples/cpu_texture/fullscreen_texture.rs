@@ -83,8 +83,8 @@ impl FullScreenTexture {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
             label: None,
+            immediate_size: 0,
         });
 
         let screen_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -116,8 +116,8 @@ impl FullScreenTexture {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
             cache: None,
+            multiview_mask: None,
         });
 
         let bind_group = TextureBindGroup::new(device, &bind_group_layout, &sampler, window_size);
@@ -146,10 +146,12 @@ impl FullScreenTexture {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                     store: wgpu::StoreOp::Store,
                 },
+                depth_slice: None,
             })],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         {
