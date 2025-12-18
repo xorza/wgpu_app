@@ -269,7 +269,7 @@ impl<'window> AppState<'window> {
 
         let surface = &window_context.surface;
 
-        let _error_scope = window_context
+        let error_scope = window_context
             .device
             .push_error_scope(wgpu::ErrorFilter::Validation);
 
@@ -296,6 +296,11 @@ impl<'window> AppState<'window> {
         surface_texture.present();
 
         Self::process_event_result(event_loop, window_context, event_result);
+
+        let error = error_scope.pop().block_on();
+        if let Some(_error) = error {
+            // log::error!("Error: {}", error);
+        }
     }
 }
 
